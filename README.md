@@ -17,7 +17,7 @@ Project premade compilation:
 * Minimalist GNU for Windows ([MinGW](https://sourceforge.net/projects/mingw/))
   * A GCC Compiler
 
-Libraries required for default program compilation:
+Libraries required for default program compilation and installed under dependency folder:
 * [OpenGL](https://github.com/KhronosGroup/OpenGL-Registry)
 * The OpenGL Extension Wrangler Library ([GLEW](https://github.com/nigels-com/glew))
 * Simple DirectMedia Layer ([SDL](https://github.com/libsdl-org/SDL))
