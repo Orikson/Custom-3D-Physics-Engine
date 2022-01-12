@@ -1,5 +1,5 @@
 # Custom-3D-Physics-Engine
-A Custom 3D Physics Engine written in C++, designed in a similar form as its ([predecessor](https://github.com/Orikson/Custom-2D-Physics-Engine)) created in 2 dimensions, implementing rendering techniques as implemented ([here](https://github.com/Orikson/3D-Realtime-Rendering)).
+A Custom 3D Physics Engine written in C++, designed in a similar form as its [predecessor](https://github.com/Orikson/Custom-2D-Physics-Engine) created in 2 dimensions, implementing rendering techniques as implemented [here](https://github.com/Orikson/3D-Realtime-Rendering).
 
 The engine seeks to demonstrate physical properties of several types of objects constructed by simple shapes in acordance to the types of shapes and meshes that can be quickly rendered. This will, in the future, include liquids and particle systems in the best interests of my education, although will focus upon fundamental physics elements as required commonly by modern video game engines. This engine, then, will be a user interactable physics environment fit for deployment as a game. As such, it will be capable of emulating non-real physical properties such as immobility. A full list of engine functionalities can be found within its corresponding section.
 
@@ -13,7 +13,20 @@ The graphics for this engine are handled using OpenGL, and the following instruc
 
 ### Required packages:
 
+Project premade compilation:
 * Minimalist GNU for Windows ([MinGW](https://sourceforge.net/projects/mingw/))
+  * A GCC Compiler
+
+Libraries required for default program compilation:
+* [OpenGL](https://github.com/KhronosGroup/OpenGL-Registry)
+* The OpenGL Extension Wrangler Library ([GLEW](https://github.com/nigels-com/glew))
+* Simple DirectMedia Layer ([SDL](https://github.com/libsdl-org/SDL))
+
+Useful libraries installed under dependency folder but unused (but could be as per your discretion):
+* [FreeGLUT](http://freeglut.sourceforge.net/)
+* [FreeType](https://freetype.org/)
+* [LibPNG](http://www.libpng.org/pub/png/libpng.html)
+* [LibJPEG](http://libjpeg.sourceforge.net/)
 
 ### Steps:
 
