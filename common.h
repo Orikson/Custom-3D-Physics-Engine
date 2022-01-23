@@ -5,9 +5,17 @@
 #define PI 3.141592653589793238462643383279502884197169399375105820974944592307816
 
 
+/*=======DATA CONSTANTS=======*/
+// number of shapes
+#define SIZE 3
+// width of data
+#define WIDTH 16
+
+
 /*=======STANDARD TEMPLATE LIBRARY=======*/
 #include <stdio.h>
 #include <stdlib.h> 
+#include <stdexcept>
 #include <iostream>
 #include <string>
 #include <fstream>
@@ -55,8 +63,16 @@ template<typename Base, typename T> inline bool instanceof(const T*) {
 
 
 /*=======CLASS DEFINITIONS=======*/
+#include "classes.h"
+
 #include "Engine/Graphics/graphics.h"
 #include "Engine/Vectors/vec3.h"
 #include "Engine/Vectors/vec4.h"
+#include "Engine/Vectors/mtrx3.h"
+
+#include "Engine/Utility/collision.h"
+
+#include "Engine/Shapes/shapes.h"
+#include "Engine/SHapes/sphere.h"
 
 #endif
