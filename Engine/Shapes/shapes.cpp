@@ -28,17 +28,8 @@
  * @param m Material identifier of the object (as described in a table within "shapes.cpp")
  * @param refidx Refraction index of the object (only used for materials of type glass)
  */
-Shape::Shape(float mass, vec3 com, vec4 orientation, mtrx3 I, float elasticity, vec3 color, int m, float refidx) {
-    this->mass = mass;
-    this->com = com;
-    this->rot = orientation;
-    this->I = I;
-    this->e = elasticity;
-    
-    this->color = color;
-    this->m = m;
-    this->refidx = refidx;
-
+Shape::Shape(float mass, vec3 &com, vec4 &orientation, mtrx3 &moment, float elasticity, vec3 &color, int m, float refidx) : 
+    mass(mass), com(com), rot(orientation), moment(moment), e(elasticity), color(color), m(m), refidx(refidx) {
     sumF = vec3(0);
     sumT = vec3(0);
 }

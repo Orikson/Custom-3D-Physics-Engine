@@ -8,8 +8,8 @@ class Sphere: public Shape {
     public:
         // all shapes have mass, a center of mass (the position!), orientation (the orientation!), a moment of inertia, and an elasticity value
         // graphical properties include color, material, and refraction index
-        Sphere(float r, float mass, vec3 com, vec4 orientation, mtrx3 I, float elasticity,
-              vec3 color, int m, float refidx);
+        Sphere(float r, float mass, vec3 &com, vec4 &orientation, mtrx3 &moment, float elasticity,
+              vec3 &color, int m, float refidx);
 
         // returns an array of width WIDTH
         float* parseData();

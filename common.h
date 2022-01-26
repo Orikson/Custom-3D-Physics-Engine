@@ -7,9 +7,9 @@
 
 /*=======DATA CONSTANTS=======*/
 // number of shapes
-#define SIZE 3
+const int DSIZE = 3;
 // width of data
-#define WIDTH 16
+const int WIDTH = 16;
 
 
 /*=======STANDARD TEMPLATE LIBRARY=======*/

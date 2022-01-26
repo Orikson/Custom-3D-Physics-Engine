@@ -8,8 +8,7 @@ class Shape {
     public:
         // all shapes have mass, a center of mass (the position!), orientation (the orientation!), a moment of inertia, and an elasticity value
         // graphical properties include color, material, and refraction index
-        Shape(float mass, vec3 com, vec4 orientation, mtrx3 I, float elasticity,
-              vec3 color, int m, float refidx);
+        Shape(float mass, vec3 &com, vec4 &orientation, mtrx3 &moment, float elasticity, vec3 &color, int m, float refidx);
 
         void applyForce(vec3 n);
         void applyTorque(vec3 F, vec3 d);
@@ -30,8 +29,8 @@ class Shape {
         vec4 rot;
         float angv;
 
-        mtrx3 I;
-        mtrx3 invI;
+        mtrx3 moment;
+        mtrx3 invMoment;
 
         float mass;
         float invMass;

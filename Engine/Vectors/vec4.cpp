@@ -12,10 +12,14 @@ vec4::vec4(float f) {
 vec4::vec4(const vec4& v) {
     this->x = v.x; this->y = v.y; this->z = v.z; this->w = v.w;
 }
-// Define orientation quaternion about axis n rotated by theta radians
+/** Define orientation quaternion about axis n rotated by theta radians
+ * C = cos (theta/2)
+ * S = sin (theta/2)
+ * rot = vec4(C, X*S, Y*S, Z*S)
+ */
 vec4::vec4(const vec3& n, float theta) {
     vec3 nt = vec3::norm(n);
-    this->x = nt.X()*sinf(theta/2); this->y = nt.Y()*sinf(theta/2); this->z = nt.Z()*sinf(theta/2); this->w = cosf(theta/2);
+    this->x = cosf(theta/2); this->y = nt.X()*sinf(theta/2); this->z = nt.Y()*sinf(theta/2); this->w = nt.Z()*sinf(theta/2);
 }
 // Represents a 4 dimensional quaternion <0, 0, 0, 0>
 vec4::vec4() {

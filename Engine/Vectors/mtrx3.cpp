@@ -5,13 +5,20 @@ mtrx3::mtrx3(vec3 a, vec3 b, vec3 c) {
     this->a = a; this->b = b; this->c = c;
     defT();
 }
+
+// 3x3 Identity matrix
+
+//mtrx3 mtrx3::I = mtrx3(vec3(1, 0, 0), 
+//                       vec3(0, 1, 0), 
+//                       vec3(0, 0, 1));
+
 mtrx3::mtrx3(const mtrx3& m) {
     this->a = m.a; this->b = m.b; this->c = m.c;
     defT();
 }
 // defaults to identity vector
 mtrx3::mtrx3() {
-    this->a = mtrx3::I.a; this->b = mtrx3::I.b; this->c = mtrx3::I.c;
+    this->a = vec3(1, 0, 0); this->b = vec3(0, 1, 0); this->c = vec3(0, 0, 1);
     defT();
 }
 
@@ -81,8 +88,13 @@ mtrx3 mtrx3::operator/ (float f) const {
 
 }
 
-void mtrx3::operator= (const mtrx3& m) {
-
+void mtrx3::operator= (mtrx3 const& m) {
+    a = m.a;
+    b = m.b;
+    c = m.c;
+    at = m.at;
+    b = m.bt;
+    c = m.ct;
 }
 void mtrx3::operator+= (const mtrx3& m) {
 

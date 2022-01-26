@@ -84,7 +84,7 @@ vec3 vec3::abs(const vec3& v) {
 // Fractional part of each component
 vec3 vec3::fract(const vec3& v) {
     vec3 r;
-    float itemp;
+    double itemp;
     r.x = modf(v.x, &itemp);
     r.y = modf(v.y, &itemp);
     r.z = modf(v.z, &itemp);

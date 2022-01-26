@@ -59,9 +59,6 @@ class mtrx3 {
         vec3 at, bt, ct;
 };
 
-// 3x3 Identity matrix
-mtrx3 mtrx3::I = mtrx3(vec3(1, 0, 0), 
-                       vec3(0, 1, 0), 
-                       vec3(0, 0, 1));
+#include "mtrx3.cpp"
 
 #endif
