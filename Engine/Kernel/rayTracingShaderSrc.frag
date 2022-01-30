@@ -7,8 +7,14 @@ uniform float iTime;
 uniform vec3 cPos;
 uniform vec3 cRot;
 
-const float MAXD = 100.0;
-const float MAXT = 100.0;
+#define MAXD 100.0
+#define MAXT 100.0
+#define MINT 0.001
+#define MAXBOUNCES 10
+#define MAXSAMPLES 10
+
+// visual constants
+#define FUZZ 0.05
 
 // layouts
 layout (std430, binding=2) buffer shader_data
@@ -144,7 +150,43 @@ vec3 translate(vec3 curpos, vec3 pos, vec4 rot) {
 
 // ray, sphere position/radius/orientation, collision
 void collide_sphere(ray ry, vec3 pos, float r, vec4 rot, int index, inout collision col) {
+    // not using rot simply because textures haven't been implemented yet (and otherwise spheres are uniformly symmetrical)
+    vec3 C = pos;
+    float a = dot(ry.rd, ry.rd);
+    float b = -2.*dot(ry.rd, C-ry.ro);
+    float c = pow(length(C-ry.ro),2.)-pow(r,2.);
 
+    if (pow(b,2.)-4.*a*c >= 0.) {
+        float t1 = (-b + sqrt(pow(b,2.)-4.*a*c))/(2.*a);
+        float t2 = (-b - sqrt(pow(b,2.)-4.*a*c))/(2.*a);
+        
+        bool coll = false;
+        float t;
+        if (t1 < MINT) {
+            if (t2 < MINT) {
+                coll = false;
+            } else {
+                coll = true;
+                t = t2;
+            }
+        } else {
+            if (t2 < MINT) {
+                coll = true;
+                t = t1;
+            } else {
+                coll = true;
+                t = min(t1, t2);
+            }
+        }
+
+        if (coll && t < col.t) {
+            col.t = t;
+            col.p = ry.ro + ry.rd*col.t;
+            col.n = normalize(col.p-pos);
+            col.obc = pos;
+            col.obi = index;
+        }
+    }
 }
 
 // ray, plane normal/point on plane
@@ -153,7 +195,7 @@ void collide_plane(ray ry, vec3 n, vec3 p, int index, inout collision col) {
     if (abs(dot(n, ry.rd)) > 0.001) {
         float tempT = dot(p-ry.ro, n)/dot(ry.rd, n);
         
-        if (tempT < col.t && tempT > 0) {
+        if (tempT < col.t && tempT > MINT) {
             col.t = tempT;
             col.p = ry.ro + ry.rd*col.t;
             col.n = n;
@@ -172,7 +214,7 @@ void collide_boundedPlane(ray ry, vec3 p, vec3 u, vec3 v, vec3 n, int index, ino
 
         vec3 a = tempP - p;
 
-        if (tempT < col.t && tempT > 0 && dot(a, v) < dot(v, v) && dot(a, u) < dot(u, u) && -dot(a, v) < dot(v, v) && -dot(a, u) < dot(u, u)) {
+        if (tempT < col.t && tempT > MINT && dot(a, v) < dot(v, v) && dot(a, u) < dot(u, u) && -dot(a, v) < dot(v, v) && -dot(a, u) < dot(u, u)) {
             col.t = tempT;
             col.p = tempP;
             col.n = n;
@@ -212,25 +254,172 @@ void collide_box(ray ry, vec3 pos, vec3 b, vec4 rot, int index, inout collision 
     collide_boundedPlane(ry, pos+negL, negU, negV, negL, index, col);
 }
 
+// parser helper functions
+// get material value
+int get_mat(int index) {
+    return int(data[index*width+11]);
+}
+
+vec3 get_color(int index) {
+    return vec3(data[index*width+13],data[index*width+14],data[index*width+15]);
+}
+
+float get_refidx(int index) {
+    return data[index*width+12];
+}
+
+vec3 get_pos(int index) {
+    return vec3(data[index*width+1],data[index*width+2],data[index*width+3]);
+}
+
+vec4 get_rot(int index) {
+    return vec4(data[index*width+4],data[index*width+5],data[index*width+6],data[index*width+7]);
+}
+
+void processCol(ray curRay, inout collision col) {
+    // determine collision for each shape in scene
+    for (int k = 0; k < size; k ++) {
+        switch (int(data[k*width])) {
+            case 0: // sphere
+                collide_sphere(
+                    curRay, 
+                    get_pos(k),
+                    data[k*width+8],
+                    get_rot(k),
+                    k,
+                    col
+                );
+                break;
+            case 1: // box
+                collide_box(
+                    curRay,
+                    get_pos(k),
+                    vec3(data[k*width+8],data[k*width+9],data[k*width+10]),
+                    get_rot(k),
+                    k,
+                    col
+                );
+                break;
+            case 2: // capsule
+                break;
+            default:
+                break;
+        }
+    }
+}
+
+bool refract2(vec3 v, vec3 n, float ni_over_nt, inout vec3 refracted) {
+    vec3 uv = normalize(v);
+    float dt = dot(uv, n);
+    float disc = 1.0 - ni_over_nt * ni_over_nt * (1.0-dt*dt);
+    if (disc > 0.0) {
+        refracted = ni_over_nt * (uv - n*dt) - n*sqrt(disc);
+        return true;
+    } else {
+        return false;
+    }
+}
+
+float schlick(float csn, float idx) {
+    float r0 = (1.0-idx) / (1.0+idx);
+    r0 = r0*r0;
+    return r0 + (1.0-r0)*pow(1.0-csn,5.0);
+}
+
+// parses provided data into shapes (given initial ray)
+vec3 world(ray ry) {
+    vec3 sumSamples = vec3(0);
+
+    // each ray can be estimated MAXSAMPLES many times
+    for (int i = 0; i < MAXSAMPLES; i ++) {
+        vec3 curColor = vec3(0);
+        vec3 attenuation = vec3(2);
+
+        ray curRay;
+        curRay.rd = ry.rd;
+        curRay.ro = ry.ro;
+
+        int bounceCount = 0;
+
+        // each ray can bounce MAXBOUNCES many times
+        for (int j = 0; j < MAXBOUNCES; j ++) {
+            bounceCount ++;
+
+            collision col;
+            col.t = MAXT;
+            col.obi = -1;
+
+            processCol(curRay, col);
+            
+            // now col contains information about the closest object it intersects with
+            if (col.obi == -1) { // flew into the void
+                float t = curRay.rd.y;
+                curColor = attenuation * ((1.0-t)*vec3(0.25,0.75,1.0)+t*vec3(0.25, 0.5, 0.75));
+                break;
+            }
+            int switcher = get_mat(col.obi);
+            switch (switcher) {
+                case 0: // lambertian
+                    curRay.ro = col.p;
+                    curRay.rd = normalize(col.n + 0.9*randInUnitSphere());
+                    attenuation *= 0.5*get_color(col.obi);
+                    //curColor += abs(normalize(col.p) + vec3(cos(iTime), sin(iTime), cos(iTime)));//get_color(col.obi);
+                    break;
+                case 1: // metal
+                    vec3 diff = randInUnitSphere();
+                    curRay.ro = col.p;
+                    vec3 rdT = reflect(normalize(curRay.rd), col.n);
+                    curRay.rd = ((1.0-FUZZ)*rdT + FUZZ*diff) + FUZZ*(col.n + diff);
+                    attenuation *= get_color(col.obi);
+                    break;
+                case 2: // glass
+                    vec3 reflected = reflect(normalize(curRay.rd), col.n);
+                    vec3 outward_normal;
+                    float ni_over_nt;
+                    vec3 refracted;
+                    float reflect_prob = 1.0;
+                    float csn;
+                    float il = 1.0/length(curRay.rd);
+                    float drdnor = dot(curRay.rd, col.n);
+                    float idx = get_refidx(col.obi);
+                    if (drdnor > 0.0) {
+                        outward_normal = -col.n;
+                        ni_over_nt = idx;
+                        csn = ni_over_nt * drdnor * il;
+                    } else {
+                        outward_normal = col.n;
+                        ni_over_nt = 1.0/idx;
+                        csn = -ni_over_nt * drdnor * il;
+                    }
+                    if (refract2(curRay.rd, outward_normal, ni_over_nt, refracted)) {
+                        reflect_prob = schlick(csn, idx);
+                    }
+                    if (randFloat() < reflect_prob) {
+                        curRay.ro = col.p;
+                        curRay.rd = reflected;
+                    } else {
+                        curRay.ro = col.p;
+                        curRay.rd = refracted;
+                    }
+            }
+        }
+
+        sumSamples += sqrt(curColor) / bounceCount;
+    }
+
+    return sumSamples / MAXSAMPLES;
+}
+
 vec3 getC(vec2 uv, vec3 fd, vec3 upd, vec3 rtd, vec3 ro) {
     vec3 rd = normalize(fd+uv.x*rtd+uv.y*upd);
     
-    collision col;
-    col.t = MAXT;
     ray ry;
     ry.ro = ro;
     ry.rd = rd;
 
-    collide_box(
-        ry, 
-        vec3(0, 0, 0), 
-        vec3(1, 1, 1), 
-        quaternion(vec3(0, 0, 1), 0),
-        0,
-        col
-    );
-
-    return col.n;
+    vec3 color = world(ry);
+    
+    return color;
 }
 
 void main() {
@@ -238,24 +427,26 @@ void main() {
     vec2 uv = FOV*vec2(x, y);
 
     setSeed(uint(hash12(uv) * (y+1) * res.x * res.x + hash12(uv) * x));
-    setSeed(randInt());// + uint(iTime*10000));
+    setSeed(randInt() + uint(iTime*10000));
 
-    vec3 ro = vec3(4*cos(iTime/10), 2, 4*sin(iTime/10));
-    vec3 fd = normalize(-ro);
+    //vec3 ro = vec3(4*cos(iTime/10), 2, 4*sin(iTime/10));
+    //vec3 ro = vec3(4, 2, 4);
+    //vec3 fd = normalize(-ro);
 
-    //vec3 ro = cPos;
-	//vec3 fd = normalize(cRot);
+    vec3 ro = cPos;
+	vec3 fd = normalize(cRot);
 	vec3 upd = normalize(vec3(-fd.y*fd.xz,length(fd.xz)).xzy);
 	vec3 rtd = normalize(cross(fd,upd));
     
     vec3 C = vec3(0);
 
-    C += getC(uv+vec2( 1, 1)*0.25/(res/1.0), fd, upd, rtd, ro);
-	C += getC(uv+vec2( 1,-1)*0.25/(res/1.0), fd, upd, rtd, ro);
-	C += getC(uv+vec2(-1, 1)*0.25/(res/1.0), fd, upd, rtd, ro);
-	C += getC(uv+vec2(-1,-1)*0.25/(res/1.0), fd, upd, rtd, ro);
+    //C += getC(uv+vec2( 1, 1)*0.25/(res/1.0), fd, upd, rtd, ro);
+	//C += getC(uv+vec2( 1,-1)*0.25/(res/1.0), fd, upd, rtd, ro);
+	//C += getC(uv+vec2(-1, 1)*0.25/(res/1.0), fd, upd, rtd, ro);
+	//C += getC(uv+vec2(-1,-1)*0.25/(res/1.0), fd, upd, rtd, ro);
 
-    C /= 4;
+    //C /= 4;
+    C += getC(uv, fd, upd, rtd, ro);
 
     gl_FragColor = vec4(C, 1);
 }

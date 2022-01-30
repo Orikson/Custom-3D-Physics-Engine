@@ -6,6 +6,6 @@
 class Shape;
 class Sphere;
 class Capsule;
-class Box;
+class BBox;
 
 #endif

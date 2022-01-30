@@ -73,6 +73,7 @@ template<typename Base, typename T> inline bool instanceof(const T*) {
 #include "Engine/Utility/collision.h"
 
 #include "Engine/Shapes/shapes.h"
-#include "Engine/SHapes/sphere.h"
+#include "Engine/Shapes/sphere.h"
+#include "Engine/Shapes/box.h"
 
 #endif

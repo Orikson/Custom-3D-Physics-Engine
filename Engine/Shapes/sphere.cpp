@@ -5,8 +5,8 @@
  * @param r Radius of the sphere
  * @param et_al see Shape constructor
  */
-Sphere::Sphere(float r, float mass, vec3 &com, vec4 &orientation, mtrx3 &moment, float elasticity, vec3 &color, int m, float refidx) : 
-Shape(mass, com, orientation, moment, elasticity, color, m, refidx), r(r) {
+Sphere::Sphere(float r, float mass, vec3 com, vec4 orientation, float elasticity, vec3 color, int m, float refidx) : 
+Shape(mass, com, orientation, elasticity, color, m, refidx), r(r) {
 
 }
 
@@ -20,10 +20,10 @@ Shape(mass, com, orientation, moment, elasticity, color, m, refidx), r(r) {
 
 /**
  * Parses a shape to an array of floats that correspond to a table found in "shapes.cpp"
- * @returns Float array fitting the above description
+ * @returns Float vector fitting the above description
  */
-float* Sphere::parseData() {
-    static float returned[WIDTH] = {
+vector<float> Sphere::parseData() {
+    vector<float> returned{
         0,
         com.X(),
         com.Y(),

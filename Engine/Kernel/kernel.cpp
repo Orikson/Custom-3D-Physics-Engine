@@ -1,23 +1,31 @@
+#include "kernel.h"
+
 auto initT = chrono::steady_clock::now();
 
-// data struct: (all unused are arbitrary)
-//          (id #)
-// [name]   [0]     [1]     [2]     [3]     [4]     [5]     [6]     [7]     [8]     [9]     [10]    [11]
-// sphere   0       x       y       z       r                       red     green   blue    mat     refidx
-// cone     1       x       y       z       c1      c2      h       red     green   blue    mat     refidx
-// box      2       x       y       z       w       l       h       red     green   blue    mat     refidx
-// r cyl	3		x		y		z		ra		rb		h       red     green   blue    mat     refidx
-// mat (0 -> diffuse, 1 -> metal, 2 -> glass)
+/** ----- DEFINING PARSING TABLE ----- (copied from shapes.cpp)
+ *              0           1           2           3           4           5           6           7           8           9           10          11          12          13          14          15
+ * SHAPE NAME   SHAPE ID    |           |           |           |           |           |           |           |           |           |           |           |           |           |           |
+ * Sphere       0           COM.X       COM.Y       COM.Z       ROT.X       ROT.Y       ROT.Z       ROT.W       RADIUS      ----        ----        MAT_ID       REF_IDX    COLOR.R     COLOR.G     COLOR.B
+ * Box          1           COM.X       COM.Y       COM.Z       ROT.X       ROT.Y       ROT.Z       ROT.W       DIM.X       DIM.Y       DIM.Z       MAT_ID       REF_IDX    COLOR.R     COLOR.G     COLOR.B
+ * Capsule      2           COM.X       COM.Y       COM.Z       ROT.X       ROT.Y       ROT.Z       ROT.W       LENGTH      RADIUS      ----        MAT_ID       REF_IDX    COLOR.R     COLOR.G     COLOR.B
+ * ...
+ */
+
+/** ----- DEFINING MATERIAL TABLE -----
+ * MAT NAME     MAT ID
+ * Lambertian   0
+ * Metal        1
+ * Glass        2
+ * ...
+ */
+
 struct shader_data_t {
-    float res[2] = {500, 500};
-    int size = 3;
-    int width = 12;
-    float data[36] = {
-        0,      0,      0,      0,      1,      0,      0,      0.2,      0.2,     0.2,       2 ,      1.5,
-        0,      0,      -1001.5, 0,      1000,    0,      0,      0.2,      0.2,   0.2,     0,      0.0,
-        //1,      0,      0,      2,      0.5,    0.5,    0.5,    0.5,    0,     0,       1
-        2,      -1,     0,     4,      1,      1,      0.1,      0,      0.5,    0,      0,     0.0
-        //3,      0,      -2,     0,      2,      0.5,    0.25,   0,      0,      0.5
+    float res[2];
+    int size;
+    int width;
+    float data[DSIZE*WIDTH] = {
+        0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1,
+        0, 0, -1, 0, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0
     };
 } shader_data;
 
@@ -42,6 +50,50 @@ int Kernel::start(const char* windowTitle, int rx, int ry) {
     // Set shaders
     setShader();
 
+    // Define shapes array
+    vector<Shape*> shapes;
+    Sphere sphere = Sphere(
+        1.0f, 
+        1.0f, 
+        vec3(1, 0, 1),
+        vec4(vec3(1, 0, 0), 0),
+        1.0f,
+        vec3(0, 0, 1),
+        2,
+        1.5f
+    );
+    Sphere sphere2 = Sphere(
+        100.0f,
+        1.0f,
+        vec3(0, -101, 0),
+        vec4(vec3(1, 0, 0), 0),
+        1.0f,
+        vec3(1, 0, 1),
+        0,
+        1.5f
+    );
+    BBox box1 = BBox(
+        vec3(1, 1, 1), 
+        1.0f, 
+        vec3(0, -1, 0),
+        vec4(vec3(1, 0, 0), 0),
+        1.0f,
+        vec3(1, 1, 1),
+        0,
+        1.5f
+    );
+    shapes.push_back(&sphere);
+    shapes.push_back(&sphere2);
+    shapes.push_back(&box1);
+    
+    // Update shader data parameters
+    shader_data.res[0] = rx;
+    shader_data.res[1] = ry;
+
+    shader_data.size = DSIZE;
+    shader_data.width = WIDTH;
+
+
     cout << "Setup Complete" << "\n";
 
     isRunning = true;
@@ -53,7 +105,7 @@ int Kernel::start(const char* windowTitle, int rx, int ry) {
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         
         // Update
-        update();
+        update(shapes);
 
         // Draw
         render(window);
@@ -120,18 +172,6 @@ void Kernel::setShader() {
     glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(shader_data), &shader_data, GL_DYNAMIC_COPY);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, ssbo);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-}
-
-float* cross(float a[3], float b[3]) {
-    float a1 = a[0]; float a2 = a[1]; float a3 = a[2];
-    float b1 = b[0]; float b2 = b[1]; float b3 = b[2];
-
-    static float r[3];
-    r[0] = a2*b3-a3*b2;
-    r[1] = a3*b1-a1*b3;
-    r[2] = a1*b2-a2*b1;
-
-    return r;
 }
 
 /**
@@ -305,7 +345,7 @@ void Kernel::setDir(float theta, float phi) {
     cameraRot[1] = cos(phi);
 }
 
-void Kernel::update() {
+void Kernel::update(vector<Shape*>& shapes) {
     frame += 1;
     
     auto cur = chrono::steady_clock::now();
@@ -316,12 +356,29 @@ void Kernel::update() {
     // system information
     cout << "\rFrame: " << frame << "\tTime: " << curtime << "\tdT: " << dt << "\tFPS: " << 1/dt;
 
+    int i = 0;
+    for (Shape* shape : shapes) {
+        vector<float> parsedData;
+        parsedData = shape->parseData();
+        int k = 0;
+
+        for (float j : parsedData) {
+            //cout << j << " ";
+            shader_data.data[i*WIDTH+k] = j;
+            k ++;
+        }
+
+        i ++;
+    }
+    
+    // update shader uniform variables
     glClear(GL_COLOR_BUFFER_BIT);
 	glUniform1i(iFrame, frame);
     glUniform1f(iTime, curtime);
     glUniform3f(glGetUniformLocation(prog, "cPos"), cameraPos[0], cameraPos[1], cameraPos[2]);
     glUniform3f(glGetUniformLocation(prog, "cRot"), cameraRot[0], cameraRot[1], cameraRot[2]);
 
+    // setup and update ssbo (shader storage buffer object)
     GLint prog = 0;
     glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
     

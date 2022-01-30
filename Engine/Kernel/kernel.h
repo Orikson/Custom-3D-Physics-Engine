@@ -13,7 +13,7 @@ class Kernel {
 
         int initSDL();
         SDL_Window* createWindow(const char* windowTitle, int width, int height);
-        void update();
+        void update(vector<Shape*>& shapes);
         void render(SDL_Window* window);
         void cleanUp(SDL_Window* window, SDL_GLContext &glContext);
         void events(SDL_Window* window);

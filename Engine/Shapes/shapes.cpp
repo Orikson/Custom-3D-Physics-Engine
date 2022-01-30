@@ -28,8 +28,8 @@
  * @param m Material identifier of the object (as described in a table within "shapes.cpp")
  * @param refidx Refraction index of the object (only used for materials of type glass)
  */
-Shape::Shape(float mass, vec3 &com, vec4 &orientation, mtrx3 &moment, float elasticity, vec3 &color, int m, float refidx) : 
-    mass(mass), com(com), rot(orientation), moment(moment), e(elasticity), color(color), m(m), refidx(refidx) {
+Shape::Shape(float mass, vec3 &com, vec4 &orientation, float elasticity, vec3 &color, int m, float refidx) : 
+    mass(mass), com(com), rot(orientation), e(elasticity), color(color), m(m), refidx(refidx) {
     sumF = vec3(0);
     sumT = vec3(0);
 }
@@ -54,4 +54,4 @@ void Shape::applyTorque(vec3 F, vec3 d) {
 /**
  * OVERRIDED: Shape overrided function per specific shape. Used to parse shape data to pass to the renderer
  */
-float* Shape::parseData() {}
+vector<float> Shape::parseData() {}
