@@ -10,11 +10,11 @@ uniform vec3 cRot;
 #define MAXD 100.0
 #define MAXT 100.0
 #define MINT 0.001
-#define MAXBOUNCES 10
+#define MAXBOUNCES 15
 #define MAXSAMPLES 10
 
 // visual constants
-#define FUZZ 0.05
+#define FUZZ 0.001
 
 // layouts
 layout (std430, binding=2) buffer shader_data
@@ -182,7 +182,7 @@ void collide_sphere(ray ry, vec3 pos, float r, vec4 rot, int index, inout collis
         if (coll && t < col.t) {
             col.t = t;
             col.p = ry.ro + ry.rd*col.t;
-            col.n = normalize(col.p-pos);
+            col.n = normalize(col.p-pos)*sign(r);
             col.obc = pos;
             col.obi = index;
         }
@@ -215,6 +215,33 @@ void collide_boundedPlane(ray ry, vec3 p, vec3 u, vec3 v, vec3 n, int index, ino
         vec3 a = tempP - p;
 
         if (tempT < col.t && tempT > MINT && dot(a, v) < dot(v, v) && dot(a, u) < dot(u, u) && -dot(a, v) < dot(v, v) && -dot(a, u) < dot(u, u)) {
+            col.t = tempT;
+            col.p = tempP;
+            col.n = n;
+            col.obc = p;
+            col.obi = index;
+        }
+    }
+}
+
+// ray, 3 points on plane
+void collide_boundedTriangle(ray ry, vec3 p, vec3 q, vec3 r, int index, inout collision col) {
+    vec3 n = normalize(cross(q-p, r-p));
+    
+    // if parallel approx 0 (for error < 0.001)
+    if (abs(dot(n, ry.rd)) > 0.001) {
+        float tempT = dot(p-ry.ro, n)/dot(ry.rd, n);
+        vec3 tempP = ry.ro + ry.rd*tempT;
+
+        vec3 a = tempP - p;
+        vec3 b = tempP - q;
+        vec3 c = tempP - r;
+
+        bool ta = dot(cross(q-p, a), n) >= 0;
+        bool tb = dot(cross(r-q, b), n) >= 0;
+        bool tc = dot(cross(p-r, c), n) >= 0;
+
+        if (tempT < col.t && tempT > MINT && ta && tb && tc) {
             col.t = tempT;
             col.p = tempP;
             col.n = n;
@@ -276,34 +303,102 @@ vec4 get_rot(int index) {
     return vec4(data[index*width+4],data[index*width+5],data[index*width+6],data[index*width+7]);
 }
 
+// accelerate processing of collisions by segmenting collisions into most reasonable collision
+/* checks:
+    * whether the ray intersects the bounding sphere of the shape 
+    * maybe some other things later?
+ */
+bool accelerate(ray curRay, int index) {
+    collision col;
+    col.t = MAXT;
+    col.obi = -1;
+
+    switch (int(data[index*width])) {
+        case 0: // sphere
+            // actually wastes time if we check spheres twice
+            return true;
+        case 1: // box
+            // also wastes time if we check boxes twice
+            return true;
+        case 2: // capsule
+            // also wastes time if we check capsules twice
+            return true;
+        case 3: // mesh
+            collide_sphere(
+                curRay, 
+                get_pos(index),
+                data[index*width+9], // largest distance of mesh as defined by data
+                get_rot(index),
+                index,
+                col
+            );
+
+            return col.obi != -1;
+        default:
+            return false;
+    }
+}
+
 void processCol(ray curRay, inout collision col) {
     // determine collision for each shape in scene
     for (int k = 0; k < size; k ++) {
-        switch (int(data[k*width])) {
-            case 0: // sphere
-                collide_sphere(
-                    curRay, 
-                    get_pos(k),
-                    data[k*width+8],
-                    get_rot(k),
-                    k,
-                    col
-                );
-                break;
-            case 1: // box
-                collide_box(
-                    curRay,
-                    get_pos(k),
-                    vec3(data[k*width+8],data[k*width+9],data[k*width+10]),
-                    get_rot(k),
-                    k,
-                    col
-                );
-                break;
-            case 2: // capsule
-                break;
-            default:
-                break;
+        if (accelerate(curRay, k)) {
+            switch (int(data[k*width])) {
+                case 0: // sphere
+                    collide_sphere(
+                        curRay, 
+                        get_pos(k),
+                        data[k*width+8],
+                        get_rot(k),
+                        k,
+                        col
+                    );
+                    break;
+                case 1: // box
+                    collide_box(
+                        curRay,
+                        get_pos(k),
+                        vec3(data[k*width+8],data[k*width+9],data[k*width+10]),
+                        get_rot(k),
+                        k,
+                        col
+                    );
+                    break;
+                case 2: // capsule
+                    break;
+                case 3: // mesh
+                    // honestly not sure what I'm going to do about meshes, so I'm ignoring the problem for now
+                    // having thousands of polygons to consider makes the program incredibly slow
+                    /*for (int l = 0; l < 1000; l ++) {//int(data[k*width+8]/9); l ++) {
+                        vec3 p = vec3(
+                            data[size*width+9*l],
+                            data[size*width+9*l+1],
+                            data[size*width+9*l+2]
+                        );
+                        vec3 q = vec3(
+                            data[size*width+9*l+3],
+                            data[size*width+9*l+4],
+                            data[size*width+9*l+5]
+                        );
+                        vec3 r = vec3(
+                            data[size*width+9*l+6],
+                            data[size*width+9*l+7],
+                            data[size*width+9*l+8]
+                        );
+                            
+                        collide_boundedTriangle(
+                            curRay,
+                            p,
+                            q,
+                            r,
+                            k,
+                            col
+                        );
+                    }*/
+                    break;
+                default:
+                    break;
+            }
         }
     }
 }

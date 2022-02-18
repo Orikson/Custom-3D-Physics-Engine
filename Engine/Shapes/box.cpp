@@ -5,9 +5,54 @@
  * @param dim Dimensions of the box
  * @param et_al see Shape constructor
  */
-BBox::BBox(vec3 dim, float mass, vec3 com, vec4 orientation, float elasticity, vec3 color, int m, float refidx) : 
-Shape(mass, com, orientation, elasticity, color, m, refidx), dim(dim) {
+BBox::BBox(vec3 dim, float mass, vec3 com, vec4 orientation, float elasticity, bool anchor, vec3 color, int m, float refidx) : 
+Shape(mass, com, orientation, elasticity, anchor, color, m, refidx), dim(dim) {
+    // dim(l, h, w)
+    float Ix = mass * (dim.Y()*dim.Y() + dim.Z()*dim.Z()) / 12;
+    float Iy = mass * (dim.X()*dim.X() + dim.Z()*dim.Z()) / 12;
+    float Iz = mass * (dim.X()*dim.X() + dim.Y()*dim.Y()) / 12;
+    moment = mtrx3(
+        vec3(Ix, 0, 0),
+        vec3(0, Iy, 0),
+        vec3(0, 0, Iz)
+    );
+    invMoment = moment.inverse();
+}
 
+/**
+ * Calculate collision object between box (this) on sphere (shape)
+ * @param shape Sphere to collide with
+ * @param r Radius of given sphere
+ */
+Collision BBox::collideWith_Sphere(const Shape& shape, float r) {
+    bool collision; 
+    vec3 normal; 
+    double penetration_depth; 
+    vector<vec3> manifold;
+}
+/**
+ * Calculate collision object between box (this) on box (shape)
+ * @param shape Box to collide with
+ * @param dim Dimensions of given box
+ */
+Collision BBox::collideWith_Box(const Shape& shape, vec3 dim) {
+    bool collision; 
+    vec3 normal; 
+    double penetration_depth; 
+    vector<vec3> manifold;
+}
+/**
+ * Calculate collision object between box (this) on capsule (shape)
+ * @param shape Capsule to collide with
+ * @param len Length of given capsule
+ * @param ri Inner radius of capsule
+ * @param ro Placeholder for outer radius of capsule 
+ */
+Collision BBox::collideWith_Capsule(const Shape& shape, float len, float ri, float ro) {
+    bool collision; 
+    vec3 normal; 
+    double penetration_depth; 
+    vector<vec3> manifold;
 }
 
 
@@ -22,7 +67,7 @@ Shape(mass, com, orientation, elasticity, color, m, refidx), dim(dim) {
  * Parses a shape to an array of floats that correspond to a table found in "shapes.cpp"
  * @returns Float vector fitting the above description
  */
-vector<float> BBox::parseData() {
+vector<float> BBox::parseData() const {
     vector<float> returned{
         1,
         com.X(),
@@ -42,5 +87,10 @@ vector<float> BBox::parseData() {
         color.Z()
     };
 
+    return returned;
+}
+
+vector<float> BBox::getVertices() const {
+    vector<float> returned;
     return returned;
 }

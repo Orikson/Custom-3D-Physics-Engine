@@ -10,18 +10,19 @@ Shapes
         [x] Standard Physical property representations (e.g. elasticity, moment of inertia, etc.)
     [x] Define Shape class
     [x] Define Sphere class
-    [ ] Define Box class
+    [x] Define Box class
     [ ] Define Capsule class
-    [ ] Write parser to pass shape data to shader
+    [ ] Define Mesh class
+    [x] Write parser to pass shape data to shader
 
 Renderer
     [x] Create ray collision functions for 3D shapes (spheres, capsules, and boxes)
-    [ ] Create ray collision functions for 2D shapes (triangles [e.g. for triangle meshes])
+    [x] Create ray collision functions for 2D shapes (triangles [e.g. for triangle meshes])
     [ ] Create interface for texture insertion
     [ ] Create standard for texture generation
 
 Physics
-    [ ] Gravity
+    [x] Gravity
     [ ] Collisions
         [ ] Defined for each type of shape-shape collision
     [ ] Constraints

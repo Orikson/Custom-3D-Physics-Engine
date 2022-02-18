@@ -7,5 +7,6 @@ class Shape;
 class Sphere;
 class Capsule;
 class BBox;
+class Mesh;
 
 #endif

@@ -18,7 +18,7 @@ vec4::vec4(const vec4& v) {
  * rot = vec4(C, X*S, Y*S, Z*S)
  */
 vec4::vec4(const vec3& n, float theta) {
-    vec3 nt = vec3::norm(n);
+    vec3 nt = n; //vec3::norm(n);
     this->x = cosf(theta/2); this->y = nt.X()*sinf(theta/2); this->z = nt.Y()*sinf(theta/2); this->w = nt.Z()*sinf(theta/2);
 }
 // Represents a 4 dimensional quaternion <0, 0, 0, 0>
@@ -154,13 +154,18 @@ vec4 vec4::operator- (const vec4& v) const {
     r.w = w - v.w;
     return r;
 }
-vec4 vec4::operator* (const vec4& v) const {
-    vec4 r;
-    r.x = x * v.x;
-    r.y = y * v.y;
-    r.z = z * v.z;
-    r.w = w * v.w;
-    return r;
+vec4 vec4::operator* (const vec4& v) const { // hamilton product
+    float a1 = x; float a2 = v.x;
+    float b1 = y; float b2 = v.y;
+    float c1 = z; float c2 = v.z;
+    float d1 = w; float d2 = v.w;
+
+    return vec4(
+        a1*a2-b1*b2-c1*c2-d1*d2,
+        a1*b2+b1*a2+c1*d2-d1*c2,
+        a1*c2-b1*d2+c1*a2+d1*b2,
+        a1*d2+b1*c2-c1*b2+d1*a2
+    );
 }
 vec4 vec4::operator/ (const vec4& v) const {
     vec4 r;

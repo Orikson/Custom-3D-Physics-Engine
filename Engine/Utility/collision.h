@@ -7,6 +7,8 @@ class Collision {
     public:
         Collision(bool collision, vec3 normal, double penetration_depth, vector<vec3> manifold);
         Collision(bool collision);
+        Collision();
+        Collision(const Collision& collision);
         
         bool col;
         vec3 n;

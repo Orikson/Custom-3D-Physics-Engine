@@ -9,3 +9,12 @@ Collision::Collision(bool collision, vec3 normal, double penetration_depth, vect
 Collision::Collision(bool collision) {
     col = collision;
 }
+Collision::Collision() {
+    col = false;
+}
+Collision::Collision(const Collision& collision) {
+    col = collision.col;
+    n = collision.n;
+    pen = collision.pen;
+    man = collision.man;
+}

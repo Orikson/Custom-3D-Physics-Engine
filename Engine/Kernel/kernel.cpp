@@ -23,10 +23,7 @@ struct shader_data_t {
     float res[2];
     int size;
     int width;
-    float data[DSIZE*WIDTH] = {
-        0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1,
-        0, 0, -1, 0, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0
-    };
+    float data[DSIZE*WIDTH]; // has a maximum size of 16 MB (16,000,000 bytes, or 4,000,000 floats)
 } shader_data;
 
 /**
@@ -52,38 +49,57 @@ int Kernel::start(const char* windowTitle, int rx, int ry) {
 
     // Define shapes array
     vector<Shape*> shapes;
+    BBox world = BBox(
+        vec3(100, 1, 100),
+        1.0f,
+        vec3(0, -2, 0),
+        vec4(vec3(1, 0, 0), 0),
+        1.0f,
+        true,
+        vec3(1, 0, 1),
+        0,
+        1.5f
+    );
     Sphere sphere = Sphere(
         1.0f, 
         1.0f, 
-        vec3(1, 0, 1),
+        vec3(0, 2, 0),
         vec4(vec3(1, 0, 0), 0),
         1.0f,
+        false,
         vec3(0, 0, 1),
-        2,
-        1.5f
-    );
-    Sphere sphere2 = Sphere(
-        100.0f,
-        1.0f,
-        vec3(0, -101, 0),
-        vec4(vec3(1, 0, 0), 0),
-        1.0f,
-        vec3(1, 0, 1),
         0,
         1.5f
     );
     BBox box1 = BBox(
-        vec3(1, 1, 1), 
+        vec3(1, 2, 2), 
         1.0f, 
-        vec3(0, -1, 0),
+        vec3(-2, 0, 0),
         vec4(vec3(1, 0, 0), 0),
         1.0f,
+        false,
         vec3(1, 1, 1),
-        0,
+        1,
         1.5f
     );
+    
+    /*Mesh mesh = Mesh(
+        0,
+        5.0f,
+        0,
+        "../../Meshes/books_and_mugs.obj",
+        1.0f,
+        vec3(2, 0, 2),
+        vec4(vec3(1, 0, 0), 0),
+        1.0f,
+        false,
+        vec3(0, 0, 1),
+        0,
+        1.5f
+    );*/
+
+    shapes.push_back(&world);
     shapes.push_back(&sphere);
-    shapes.push_back(&sphere2);
     shapes.push_back(&box1);
     
     // Update shader data parameters
@@ -358,8 +374,12 @@ void Kernel::update(vector<Shape*>& shapes) {
 
     int i = 0;
     for (Shape* shape : shapes) {
+        //shape->updateLoop(dt/100);
+
         vector<float> parsedData;
+        vector<float> parsedVertices;
         parsedData = shape->parseData();
+        parsedVertices = shape->getVertices();
         int k = 0;
 
         for (float j : parsedData) {
@@ -367,6 +387,24 @@ void Kernel::update(vector<Shape*>& shapes) {
             shader_data.data[i*WIDTH+k] = j;
             k ++;
         }
+
+        // too tired to think clearly so I will write out what I think I can do
+        // there's no need to pass this much mesh data every frame
+        // find a way (maybe using glBufferData? GL_ARRAY_BUFFER?) to send data once at the beginning of the program
+        // after shapes are created, and make sure that the ray tracer has random access to said array
+        // it feels unnecessary to update this every frame
+        // it also might be a speed bonus to change the ssbo to a ubo because we dont need all that space to update every frame
+        // (this would theoretically be faster)
+        // ultimately, find a way to offload the passage of mesh data to the gpu without having to constantly update the realtime ssbo
+        /*k = 0;
+        if (parsedVertices.size() > 0) {
+            for (float j : parsedVertices) {
+                cout << j << " ";
+                shader_data.data[WIDTH*DSIZE+k] = j;
+                k++;
+                if (k % 3 == 0) { cout << "\n" << k << " "; }
+            }
+        }*/
 
         i ++;
     }

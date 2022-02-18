@@ -3,9 +3,10 @@
 /** ----- DEFINING PARSING TABLE ----- 
  *              0           1           2           3           4           5           6           7           8           9           10          11          12          13          14          15
  * SHAPE NAME   SHAPE ID    |           |           |           |           |           |           |           |           |           |           |           |           |           |           |
- * Sphere       0           COM.X       COM.Y       COM.Z       ROT.X       ROT.Y       ROT.Z       ROT.W       RADIUS      ----        ----        MAT_ID       REF_IDX    COLOR.R     COLOR.G     COLOR.B
- * Box          1           COM.X       COM.Y       COM.Z       ROT.X       ROT.Y       ROT.Z       ROT.W       DIM.X       DIM.Y       DIM.Z       MAT_ID       REF_IDX    COLOR.R     COLOR.G     COLOR.B
- * Capsule      2           COM.X       COM.Y       COM.Z       ROT.X       ROT.Y       ROT.Z       ROT.W       LENGTH      RADIUS      ----        MAT_ID       REF_IDX    COLOR.R     COLOR.G     COLOR.B
+ * Sphere       0           COM.X       COM.Y       COM.Z       ROT.X       ROT.Y       ROT.Z       ROT.W       RADIUS      ----        ----        MAT_ID      REF_IDX     COLOR.R     COLOR.G     COLOR.B
+ * Box          1           COM.X       COM.Y       COM.Z       ROT.X       ROT.Y       ROT.Z       ROT.W       DIM.X       DIM.Y       DIM.Z       MAT_ID      REF_IDX     COLOR.R     COLOR.G     COLOR.B
+ * Capsule      2           COM.X       COM.Y       COM.Z       ROT.X       ROT.Y       ROT.Z       ROT.W       LENGTH      RADIUS      ----        MAT_ID      REF_IDX     COLOR.R     COLOR.G     COLOR.B
+ * Mesh         3           COM.X       COM.Y       COM.Z       ROT.X       ROT.Y       ROT.Z       ROT.W       MESH_SIZE   LARGEST_D   MESH_INDX   MAT_ID      REF_IDX     COLOR.R     COLOR.G     COLOR.B
  * ...
  */
 
@@ -28,10 +29,12 @@
  * @param m Material identifier of the object (as described in a table within "shapes.cpp")
  * @param refidx Refraction index of the object (only used for materials of type glass)
  */
-Shape::Shape(float mass, vec3 &com, vec4 &orientation, float elasticity, vec3 &color, int m, float refidx) : 
-    mass(mass), com(com), rot(orientation), e(elasticity), color(color), m(m), refidx(refidx) {
+Shape::Shape(float mass, vec3 &com, vec4 &orientation, float elasticity, bool anchor, vec3 &color, int m, float refidx) : 
+    mass(mass), com(com), rot(orientation), e(elasticity), anchor(anchor), color(color), m(m), refidx(refidx) {
     sumF = vec3(0);
     sumT = vec3(0);
+
+    invMass = 1/mass;
 }
 
 /**
@@ -54,4 +57,75 @@ void Shape::applyTorque(vec3 F, vec3 d) {
 /**
  * OVERRIDED: Shape overrided function per specific shape. Used to parse shape data to pass to the renderer
  */
-vector<float> Shape::parseData() {}
+vector<float> Shape::parseData() const {}
+vector<float> Shape::getVertices() const { vector<float> returned; return returned; }
+Collision Shape::collideWith_Sphere(const Shape& shape, float r) {}
+Collision Shape::collideWith_Box(const Shape& shape, vec3 dim) {}
+Collision Shape::collideWith_Capsule(const Shape& capsule, float len, float ri, float ro) {}
+
+
+/**
+ * Calculate resultant velocities of a potential collision with a given object
+ * @param shape shape to check a collision with
+ */
+void Shape::collideWith(const Shape& shape) {
+    vector<float> tempData;
+    tempData = shape.parseData();
+
+    Collision res;
+
+    switch((int)tempData.at(0)) {
+        case 0: // sphere
+            res = collideWith_Sphere(shape, tempData.at(8));
+            break;
+        case 1: // box
+
+            break;
+        case 2: // capsule
+
+            break;
+        case 3: // mesh
+
+            break;
+        default:
+            break;
+    }
+
+}
+
+/**
+ * Standard shape update loop
+ * @param dT time difference from previous loop update
+ */
+void Shape::updateLoop(float dT) {
+    if (!anchor) {
+        // apply gravity
+        applyForce(vec3(0, G, 0));
+
+        // update velocity
+        linv += sumF * invMass * dT;
+
+        // dampen velocity
+        linv *= DAMPEN;
+
+        // update angular velocity
+        angv += invMoment * sumT * dT;
+        
+        // dampen angular velocity
+        angv *= DAMPEN;
+
+        // update position
+        com += linv * dT;
+
+        // update orientation
+        vec3 temp = angv * dT * 0.5;
+        rot += vec4(temp.X(), temp.Y(), temp.Z(), 0) * rot;
+        
+        // normalize orientation
+        rot = vec4::norm(rot);
+
+        // reset sum of forces
+        sumF = vec3(0);
+        sumT = vec3(0);
+    }
+}
