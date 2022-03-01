@@ -5,12 +5,17 @@ The engine seeks to demonstrate physical properties of several types of objects 
 
 
 ## Visuals
-### Realtime Render Material Samples (global illumination, without lighting)
+### Render Material Samples (global illumination, without lighting)
 Glass | Metal 
 :-------------------------:|:-------------------------:
-<img src="https://user-images.githubusercontent.com/42471346/154599668-6fb790be-7322-4948-b923-65e9bfdf15cf.png" width="250" height="250"> | <img src="https://user-images.githubusercontent.com/42471346/154601598-567b53dd-1230-40e4-a97d-e448fb2d49e7.png" width="250" height="250">
+<img src="https://user-images.githubusercontent.com/42471346/156089190-828bea33-e256-40fc-95f9-9129d0d72f06.png" width="250" height="250"> | <img src="https://user-images.githubusercontent.com/42471346/156091233-7e8cc159-d776-4c97-b5d0-d4b594c92b0e.png" width="250" height="250">
 
-### Realtime Render Material Samples (global illumination, with diffuse and specular lighting)
+### Render Material Samples (global illumination, with diffuse lighting)
+Glass | Metal 
+:-------------------------:|:-------------------------:
+<img src="https://user-images.githubusercontent.com/42471346/156090082-4a824c76-eb25-46a5-a7dc-f14cd1579391.png" width="250" height="250"> | <img src="https://user-images.githubusercontent.com/42471346/156090602-e2b58f80-365e-4dd1-8659-c58d5221caf0.png" width="250" height="250">
+
+### Render Material Samples (global illumination, with diffuse lighting and specular lighting)
 TBD
 
 ### Physics Properties
