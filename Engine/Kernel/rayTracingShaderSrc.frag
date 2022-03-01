@@ -10,11 +10,13 @@ uniform vec3 cRot;
 #define MAXD 100.0
 #define MAXT 100.0
 #define MINT 0.001
-#define MAXBOUNCES 15
-#define MAXSAMPLES 10
+#define MAXBOUNCES 5
+#define MAXSAMPLES 1000
 
 // visual constants
 #define FUZZ 0.001
+#define FOCUS 10
+#define APERTURE 0.10
 
 // layouts
 layout (std430, binding=2) buffer shader_data
@@ -69,6 +71,15 @@ vec3 randInUnitSphere() {
     float m = randFloat();
 
     return d*m;
+}
+vec3 randInUnitDisk() {
+    vec3 r, p;
+    r.x = randFloat();
+    r.y = randFloat();
+    r.z = 0;
+    p = 2 * r - vec3(1, 1, 0);
+    while (dot(p,p)>1) p *= 0.7;
+    return p;
 }
 float hash12(vec2 p) {
 	vec3 p3  = fract(vec3(p.xyx) * .1031);
@@ -281,6 +292,86 @@ void collide_box(ray ry, vec3 pos, vec3 b, vec4 rot, int index, inout collision 
     collide_boundedPlane(ry, pos+negL, negU, negV, negL, index, col);
 }
 
+// shortest vector to line segment
+vec3 toLineSegment(vec3 ro, vec3 pos, float l, vec4 rot) {
+    vec3 pa = pos + rotate(vec3(0, l, 0), rot);
+    vec3 pb = pos + rotate(vec3(0, -l, 0), rot);
+
+    if (abs(dot(ro-pos, pa-pos)) < dot(pa-pos, pa-pos)) { // inside line segment (orthogonal of projection)
+        return (ro-pos)-(dot(pa-pos, ro-pos)/dot(pa-pos, pa-pos))*(pa-pos);
+    } else { // near caps
+        float da = distance(pa, ro);
+        float db = distance(pb, ro);
+
+        if (da < db) {
+            return pa-ro;
+        } else {
+            return pb-ro;
+        }
+    }
+}
+
+// collide capsule : adapted from http://www.iquilezles.org/www/articles/intersectors/intersectors.htm
+void collide_capsule(ray ry, vec3 pos, float l, float r, vec4 rot, int index, inout collision col) {
+    vec3 pa = pos + rotate(vec3(0, l, 0), rot);
+    vec3 pb = pos + rotate(vec3(0, -l, 0), rot);
+
+    vec3 ro = ry.ro;
+    vec3 rd = ry.rd;
+    
+    vec3 ba = pb - pa;
+    vec3 oa = ro - pa;
+
+    float baba = dot(ba,ba);
+    float bard = dot(ba,rd);
+    float baoa = dot(ba,oa);
+    float rdoa = dot(rd,oa);
+    float oaoa = dot(oa,oa);
+
+    float a = baba      - bard*bard;
+    float b = baba*rdoa - baoa*bard;
+    float c = baba*oaoa - baoa*baoa - r*r*baba;
+    float h = b*b - a*c;
+    if(h >= 0) {
+        float t = (-b-sqrt(h))/a;
+        float y = baoa + t*bard;
+        // body
+        //vec3 distto = toLineSegment(ro+rd*(t-0.01), pos, l, rot);
+        //int signto = (length(distto) > r) ? -1 : 1;
+        if (y > 0.0 && y < baba && t < col.t && t > MINT) {
+            float d = t;
+            pa = ro + rd * d - pa;
+            h = clamp(dot(pa,ba)/dot(ba,ba),0.0,1.0);
+
+            col.t = t;
+            col.p = ro+rd*t;
+            col.n = (pa - h*ba)/r;
+            col.obc = pos;
+            col.obi = index;
+        }
+        
+        // caps
+        vec3 oc = (y<=0.0) ? oa : ro - pb;
+        b = dot(rd,oc);
+        c = dot(oc,oc) - r*r;
+        h = b*b - c;
+        t = -b - sqrt(h);
+        //distto = toLineSegment(ro+rd*(t-0.01), pos, l, rot);
+        //signto = (length(distto) > r) ? -1 : 1;
+        if (h > 0 && t < col.t && t > MINT) {
+            float d = t;
+            pa = ro + rd * d - pa;
+            h = clamp(dot(pa,ba)/dot(ba,ba),0.0,1.0);
+
+            col.t = t;
+            col.p = ro+rd*t;
+            col.n = (pa - h*ba)/r;
+            col.obc = pos;
+            col.obi = index;
+        }
+    }
+}
+
 // parser helper functions
 // get material value
 int get_mat(int index) {
@@ -339,6 +430,16 @@ bool accelerate(ray curRay, int index) {
     }
 }
 
+vec3 shade(float a, float b, vec3 c1, vec3 c2) {
+    bool wu = fract(a*0.5)>0.5;
+    bool wv = fract(b*0.5)>0.5;
+    if (wu^^wv) {
+        return c1;
+    } else {
+        return c2;
+    }
+}
+
 void processCol(ray curRay, inout collision col) {
     // determine collision for each shape in scene
     for (int k = 0; k < size; k ++) {
@@ -365,6 +466,15 @@ void processCol(ray curRay, inout collision col) {
                     );
                     break;
                 case 2: // capsule
+                    collide_capsule(
+                        curRay,
+                        get_pos(k),
+                        data[k*width+8],
+                        data[k*width+9],
+                        get_rot(k),
+                        k,
+                        col
+                    );
                     break;
                 case 3: // mesh
                     // honestly not sure what I'm going to do about meshes, so I'm ignoring the problem for now
@@ -421,18 +531,46 @@ float schlick(float csn, float idx) {
     return r0 + (1.0-r0)*pow(1.0-csn,5.0);
 }
 
-// parses provided data into shapes (given initial ray)
-vec3 world(ray ry) {
+void detRay(vec2 uv, inout ray Ray) {
+    float aspect = 1.0;
+
+    float VFOV = 35.0;
+    float lens_radius = APERTURE * 0.5;
+    float theta = 3.1415 * VFOV / 180;
+
+    float half_height = tan(theta*0.5);
+    float half_width = aspect * half_height;
+    vec3 origin = vec3(-cPos.x, cPos.y, -cPos.z);
+    vec3 w = normalize(vec3(cRot.x, -cRot.y, cRot.z));
+    vec3 u = normalize(cross(vec3(0, 1, 0), w));
+    vec3 v = cross(w, u);
+    vec3 lower_left_corner = origin - half_width*FOCUS*u - half_height*FOCUS*v - FOCUS*w;
+    vec3 horizontal = 2 * half_width * FOCUS * u;
+    vec3 vertical = 2 * half_height * FOCUS * v;
+    
+    // Generate a ray
+    vec2 st = vec2(uv.x + 1*randFloat()/res.x, uv.y + randFloat()/res.y);
+    vec3 rd = lens_radius * randInUnitDisk();
+    vec3 offset = u*rd.x + v*rd.y;
+    vec3 ro = origin + offset;
+    rd = normalize(lower_left_corner + st.x*horizontal + st.y*vertical - origin - offset);
+
+    Ray.ro = ro;
+    Ray.rd = rd;
+}
+
+// parses provided data into shapes (given initial setup for ray)
+vec3 world(vec2 uv) {
     vec3 sumSamples = vec3(0);
 
     // each ray can be estimated MAXSAMPLES many times
     for (int i = 0; i < MAXSAMPLES; i ++) {
+        setSeed(randInt());
         vec3 curColor = vec3(0);
         vec3 attenuation = vec3(2);
 
         ray curRay;
-        curRay.rd = ry.rd;
-        curRay.ro = ry.ro;
+        detRay(uv, curRay);
 
         int bounceCount = 0;
 
@@ -449,23 +587,41 @@ vec3 world(ray ry) {
             // now col contains information about the closest object it intersects with
             if (col.obi == -1) { // flew into the void
                 float t = curRay.rd.y;
+                //curColor = col.n;
                 curColor = attenuation * ((1.0-t)*vec3(0.25,0.75,1.0)+t*vec3(0.25, 0.5, 0.75));
                 break;
             }
             int switcher = get_mat(col.obi);
+
+            if (switcher == 3) { // light
+                curColor = attenuation * get_color(col.obi) * 5;
+                break;
+            }
+
             switch (switcher) {
                 case 0: // lambertian
                     curRay.ro = col.p;
                     curRay.rd = normalize(col.n + 0.9*randInUnitSphere());
-                    attenuation *= 0.5*get_color(col.obi);
+                    if (col.obi == 0) { // world floor
+                        attenuation *= 0.5*shade(col.p.x, col.p.z, get_color(col.obi), vec3(2, 2, 2));
+                    } else {
+                        attenuation *= 0.5*get_color(col.obi);
+                    }
+                    
                     //curColor += abs(normalize(col.p) + vec3(cos(iTime), sin(iTime), cos(iTime)));//get_color(col.obi);
                     break;
                 case 1: // metal
                     vec3 diff = randInUnitSphere();
                     curRay.ro = col.p;
                     vec3 rdT = reflect(normalize(curRay.rd), col.n);
-                    curRay.rd = ((1.0-FUZZ)*rdT + FUZZ*diff) + FUZZ*(col.n + diff);
-                    attenuation *= get_color(col.obi);
+                    if (col.obi == 0) { // world floor
+                        float fuzz = 0.1;
+                        curRay.rd = ((1.0-fuzz)*rdT + fuzz*diff) + fuzz*(col.n + diff);
+                        attenuation *= 0.5*shade(col.p.x, col.p.z, get_color(col.obi), vec3(2, 2, 2));
+                    } else {
+                        curRay.rd = ((1.0-FUZZ)*rdT + FUZZ*diff) + FUZZ*(col.n + diff);
+                        attenuation *= get_color(col.obi);
+                    }
                     break;
                 case 2: // glass
                     vec3 reflected = reflect(normalize(curRay.rd), col.n);
@@ -496,6 +652,7 @@ vec3 world(ray ry) {
                         curRay.ro = col.p;
                         curRay.rd = refracted;
                     }
+                    break;
             }
         }
 
@@ -505,33 +662,29 @@ vec3 world(ray ry) {
     return sumSamples / MAXSAMPLES;
 }
 
-vec3 getC(vec2 uv, vec3 fd, vec3 upd, vec3 rtd, vec3 ro) {
-    vec3 rd = normalize(fd+uv.x*rtd+uv.y*upd);
+vec3 getC(vec2 uv) {//vec2 uv, vec3 fd, vec3 upd, vec3 rtd, vec3 ro) {
+    //vec3 rd = normalize(fd+uv.x*rtd+uv.y*upd);
     
-    ray ry;
-    ry.ro = ro;
-    ry.rd = rd;
-
-    vec3 color = world(ry);
+    vec3 color = world(uv);
     
     return color;
 }
 
 void main() {
-    float FOV = 0.5;
-    vec2 uv = FOV*vec2(x, y);
+    float TFOV = 1;
+    vec2 uv = TFOV*vec2(x/2+0.5, y/2+0.5);
 
     setSeed(uint(hash12(uv) * (y+1) * res.x * res.x + hash12(uv) * x));
-    setSeed(randInt() + uint(iTime*10000));
-
+    setSeed(randInt() + uint(2.0 * 10000));
+    
     //vec3 ro = vec3(4*cos(iTime/10), 2, 4*sin(iTime/10));
     //vec3 ro = vec3(4, 2, 4);
     //vec3 fd = normalize(-ro);
 
-    vec3 ro = cPos;
+    /*vec3 ro = cPos;
 	vec3 fd = normalize(cRot);
 	vec3 upd = normalize(vec3(-fd.y*fd.xz,length(fd.xz)).xzy);
-	vec3 rtd = normalize(cross(fd,upd));
+	vec3 rtd = normalize(cross(fd,upd));*/
     
     vec3 C = vec3(0);
 
@@ -541,7 +694,8 @@ void main() {
 	//C += getC(uv+vec2(-1,-1)*0.25/(res/1.0), fd, upd, rtd, ro);
 
     //C /= 4;
-    C += getC(uv, fd, upd, rtd, ro);
-
+    
+    C += getC(uv);//uv, fd, upd, rtd, ro);
+    //C += vec3(randFloat());
     gl_FragColor = vec4(C, 1);
 }

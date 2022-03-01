@@ -1,14 +1,14 @@
-// Box class
-#ifndef _BOX_H
-#define _BOX_H
+// Capsule class
+#ifndef _CAPSULE_H
+#define _CAPSULE_H
 
 #include "../../common.h"
 
-class BBox: public Shape {
+class Capsule: public Shape {
     public:
         // all shapes have mass, a center of mass (the position!), orientation (the orientation!), a moment of inertia, and an elasticity value
         // graphical properties include color, material, and refraction index
-        BBox(vec3 dim, float mass, vec3 com, vec4 orientation, float elasticity, bool anchor, 
+        Capsule(float length, float radius, float mass, vec3 com, vec4 orientation, float elasticity, bool anchor, 
               vec3 color, int m, float refidx);
 
         // returns an array of width WIDTH
@@ -23,10 +23,11 @@ class BBox: public Shape {
         Collision collideWith_Capsule(const Shape& shape, float len, float ri, float ro) override;
 
     private:
-        vec3 dim;
+        float l;
+        float r;
 };
 
 
-#include "box.cpp"
+#include "capsule.cpp"
 
 #endif

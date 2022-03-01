@@ -16,6 +16,7 @@ auto initT = chrono::steady_clock::now();
  * Lambertian   0
  * Metal        1
  * Glass        2
+ * Light        3
  * ...
  */
 
@@ -37,6 +38,12 @@ int Kernel::start(const char* windowTitle, int rx, int ry) {
     // Create window instance
     SDL_Window* window = createWindow(windowTitle, rx, ry);
 
+    // Create renderer
+    SDL_Renderer* renderer = createRenderer(window);
+
+    // Create surface
+    sumSurface = SDL_CreateRGBSurface(SDL_SWSURFACE, rx, ry, 24, 0x000000FF, 0x0000FF00, 0x00FF0000, 0);
+
     // Generate opengl context in window
     SDL_GLContext glContext = SDL_GL_CreateContext(window);
 
@@ -57,7 +64,7 @@ int Kernel::start(const char* windowTitle, int rx, int ry) {
         1.0f,
         true,
         vec3(1, 0, 1),
-        0,
+        1,
         1.5f
     );
     Sphere sphere = Sphere(
@@ -72,9 +79,20 @@ int Kernel::start(const char* windowTitle, int rx, int ry) {
         1.5f
     );
     BBox box1 = BBox(
+        vec3(1, 1, 1), 
+        1.0f, 
+        vec3(2, 3, -0.5),
+        vec4(vec3(1, 0, 0), 0),
+        1.0f,
+        false,
+        vec3(1, 1, 1),
+        3,
+        1.5f
+    );
+    BBox box2 = BBox(
         vec3(1, 2, 2), 
         1.0f, 
-        vec3(-2, 0, 0),
+        vec3(2, 0, 0),
         vec4(vec3(1, 0, 0), 0),
         1.0f,
         false,
@@ -82,7 +100,40 @@ int Kernel::start(const char* windowTitle, int rx, int ry) {
         1,
         1.5f
     );
-    
+    BBox box3 = BBox(
+        vec3(5, 4, 1), 
+        1.0f, 
+        vec3(0, 0, 3),
+        vec4(vec3(1, 0, 0), 0),
+        1.0f,
+        false,
+        vec3(1, 1, 1),
+        0,
+        1.5f
+    );
+    BBox box4 = BBox(
+        vec3(10, 0.75, 10), 
+        1.0f, 
+        vec3(0, 3, 0),
+        vec4(vec3(1, 0, 0), 0),
+        1.0f,
+        false,
+        vec3(1, 1, 1),
+        0,
+        1.5f
+    );
+    Capsule capsule = Capsule(
+        1.0f,
+        0.5f,
+        1.0f,
+        vec3(-2, 4, -2),
+        vec4(vec3(1, 1, 0), 12),
+        1.0f,
+        false,
+        vec3(0, 1, 0),
+        0,
+        1.5f
+    );
     /*Mesh mesh = Mesh(
         0,
         5.0f,
@@ -100,7 +151,12 @@ int Kernel::start(const char* windowTitle, int rx, int ry) {
 
     shapes.push_back(&world);
     shapes.push_back(&sphere);
-    shapes.push_back(&box1);
+    //shapes.push_back(&box1);
+    shapes.push_back(&box2);
+    //shapes.push_back(&box3);
+    //shapes.push_back(&box4);
+    
+    //shapes.push_back(&capsule);
     
     // Update shader data parameters
     shader_data.res[0] = rx;
@@ -115,6 +171,7 @@ int Kernel::start(const char* windowTitle, int rx, int ry) {
     isRunning = true;
     // Main loop
     while (isRunning) {
+    //for (int i = 0; i < 1; i ++) {
         // Setup gl environment
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         // Background color
@@ -128,6 +185,14 @@ int Kernel::start(const char* windowTitle, int rx, int ry) {
         
         // Handle events
         events(window);
+
+        //cin.ignore();
+        /*isRunning = false;
+        string fname = "output/" + to_string(i) + ".bmp";
+        if (saveImage(window, renderer, fname.c_str())) {
+            cout << "Saved image\n";
+        }*/
+        cin.ignore();
     }
 
     // Free resources
@@ -220,6 +285,9 @@ void Kernel::events(SDL_Window* window) {
                     case SDLK_LCTRL: // left control key
                         ctrlDown = true;
                         break;
+                    case SDLK_RETURN: // enter key
+                        enDown = true;
+                        break;
                     case SDLK_ESCAPE: // exit game
                         isRunning = false;
                         break;
@@ -248,6 +316,9 @@ void Kernel::events(SDL_Window* window) {
                         break;
                     case SDLK_LCTRL: // left control key
                         ctrlDown = false;
+                        break;
+                    case SDLK_RETURN: // enter key
+                        enDown = false;
                         break;
                 }
                 break;
@@ -305,6 +376,11 @@ void Kernel::events(SDL_Window* window) {
     if (shDown) {
         setPos(0, -moveC, 0);
     }
+    if (enDown) {
+        cout << "\ncPos: " << cameraPos[0] << " " << cameraPos[1] << " " << cameraPos[2];
+        cout << "\ncRot: " << curTheta << " " << curPhi;
+        cout << "\n";
+    }
 
 }
 
@@ -334,8 +410,8 @@ SDL_Window* Kernel::createWindow(const char* windowTitle, int width, int height)
         SDL_Log("Window Successful Generated");
 
     resolution[0] = width; resolution[1] = height;
-    curTheta = -PI; curPhi = PI/4;
-    setPos(5, 2, 0);
+    curTheta = -2.5216; curPhi = -0.0439999; 
+    setPos(7.67347, -0.140061, 7.31513);
     setDir(curTheta, curPhi+PI/2);
 
     wDown = false;
@@ -346,6 +422,19 @@ SDL_Window* Kernel::createWindow(const char* windowTitle, int width, int height)
     SDL_SetRelativeMouseMode(SDL_TRUE);
 
     return window;
+}
+
+SDL_Renderer* Kernel::createRenderer(SDL_Window* window) {
+    SDL_Renderer* renderer = NULL;
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    //Check that the renderer was succesfully created
+    if(renderer == NULL) {
+        //Print error, if null
+        SDL_Log("Could not create renderer: %s\n", SDL_GetError());
+    } else
+        SDL_Log("Renderer Successful Generated");
+    
+    return renderer;
 }
 
 // add vector to position vector
@@ -442,6 +531,84 @@ void Kernel::render(SDL_Window* window) {
 
     SDL_GL_SwapWindow(window);
 }
+
+void flipSurface(SDL_Surface* surface) {
+    SDL_LockSurface(surface);
+    
+    int pitch = surface->pitch; // row size
+    char* temp = new char[pitch]; // intermediate buffer
+    char* pixels = (char*) surface->pixels;
+    
+    for(int i = 0; i < surface->h / 2; ++i) {
+        // get pointers to the two rows to swap
+        char* row1 = pixels + i * pitch;
+        char* row2 = pixels + (surface->h - i - 1) * pitch;
+        
+        // swap rows
+        memcpy(temp, row1, pitch);
+        memcpy(row1, row2, pitch);
+        memcpy(row2, temp, pitch);
+    }
+    
+    delete[] temp;
+
+    SDL_UnlockSurface(surface);
+}
+
+Uint32 getpixel(SDL_Surface *surface, int x, int y)
+{
+    int bpp = surface->format->BytesPerPixel;
+    /* Here p is the address to the pixel we want to retrieve */
+    Uint8 *p = (Uint8 *)surface->pixels + y * surface->pitch + x * bpp;
+
+    switch (bpp) {
+        case 1:
+            return *p;
+            break;
+
+        case 2:
+            return *(Uint16 *)p;
+            break;
+
+        case 3:
+            if (SDL_BYTEORDER == SDL_BIG_ENDIAN)
+                return p[0] << 16 | p[1] << 8 | p[2];
+            else
+                return p[0] | p[1] << 8 | p[2] << 16;
+                break;
+
+        case 4:
+            return *(Uint32 *)p;
+            break;
+
+        default:
+            return 0;       /* shouldn't happen, but avoids warnings */
+    }
+}
+
+bool Kernel::saveImage(SDL_Window* window, SDL_Renderer* renderer, const char* file) {
+    int w,h;
+    SDL_GetRendererOutputSize(renderer, &w, &h);
+
+    SDL_Surface* image = SDL_CreateRGBSurface(SDL_SWSURFACE, w, h, 24, 0x000000FF, 0x0000FF00, 0x00FF0000, 0);
+
+    glReadBuffer(GL_FRONT);
+    glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, image->pixels);
+
+    SDL_Color rgb;
+    Uint32 data = getpixel(image, 200, 200);
+    SDL_GetRGB(data, image->format, &rgb.r, &rgb.g, &rgb.b);
+    
+    cout << "\ncolor: " << (int)rgb.r << " " << (int)rgb.g << " " << (int)rgb.b;
+    cout << "\nitime: " << (int)curtime << "\n";
+
+    flipSurface(image);
+
+    SDL_SaveBMP(image, file);
+    SDL_FreeSurface(image);
+}
+
+
 
 /**
  * Cleans up gl context and deletes the SDL window pane
