@@ -10,12 +10,12 @@ uniform vec3 cRot;
 #define MAXD 100.0
 #define MAXT 100.0
 #define MINT 0.001
-#define MAXBOUNCES 5
+#define MAXBOUNCES 3
 #define MAXSAMPLES 1000
 
 // visual constants
 #define FUZZ 0.001
-#define FOCUS 10
+#define FOCUS 18
 #define APERTURE 0.10
 
 // layouts
@@ -78,7 +78,10 @@ vec3 randInUnitDisk() {
     r.y = randFloat();
     r.z = 0;
     p = 2 * r - vec3(1, 1, 0);
-    while (dot(p,p)>1) p *= 0.7;
+    while (dot(p,p)>1) {
+        //p *= 0.7;
+        p = 2 * vec3(randFloat(), randFloat(), 0)- vec3(1,1,0);
+    }
     return p;
 }
 float hash12(vec2 p) {

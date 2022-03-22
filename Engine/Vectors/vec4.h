@@ -65,6 +65,6 @@ class vec4 {
         
 };
 
-#include "vec4.cpp"
+//#include "vec4.cpp"
 
 #endif

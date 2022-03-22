@@ -1,7 +1,5 @@
 #include "kernel.h"
 
-auto initT = chrono::steady_clock::now();
-
 /** ----- DEFINING PARSING TABLE ----- (copied from shapes.cpp)
  *              0           1           2           3           4           5           6           7           8           9           10          11          12          13          14          15
  * SHAPE NAME   SHAPE ID    |           |           |           |           |           |           |           |           |           |           |           |           |           |           |
@@ -70,7 +68,7 @@ int Kernel::start(const char* windowTitle, int rx, int ry) {
     Sphere sphere = Sphere(
         1.0f, 
         1.0f, 
-        vec3(0, 2, 0),
+        vec3(0, 5, 0),
         vec4(vec3(1, 0, 0), 0),
         1.0f,
         false,
@@ -90,14 +88,14 @@ int Kernel::start(const char* windowTitle, int rx, int ry) {
         1.5f
     );
     BBox box2 = BBox(
-        vec3(1, 2, 2), 
+        vec3(3, 0.5, 3), 
         1.0f, 
         vec3(2, 0, 0),
         vec4(vec3(1, 0, 0), 0),
         1.0f,
         false,
         vec3(1, 1, 1),
-        1,
+        0,
         1.5f
     );
     BBox box3 = BBox(
@@ -148,11 +146,76 @@ int Kernel::start(const char* windowTitle, int rx, int ry) {
         0,
         1.5f
     );*/
+    Sphere sphere1 = Sphere(
+        0.5f, 
+        1.0f, 
+        vec3(1, 2, 0),
+        vec4(vec3(1, 0, 0), 0),
+        1.0f,
+        false,
+        vec3(0, 1, 0),
+        0,
+        1.5f
+    );
+    Sphere sphere2 = Sphere(
+        0.45f, 
+        1.0f, 
+        vec3(-1, 5, -2),
+        vec4(vec3(1, 0, 0), 0),
+        1.0f,
+        false,
+        vec3(1, 0, 0),
+        0,
+        1.5f
+    );
+    BBox box5 = BBox(
+        vec3(5, 5, 0.5), 
+        1.0f, 
+        vec3(0, 0, 5),
+        vec4(vec3(1, 0, 0), 0),
+        1.0f,
+        true,
+        vec3(1, 1, 1),
+        0,
+        1.5f
+    );
+    BBox box6 = BBox(
+        vec3(0.5, 5, 5),
+        1.0f, 
+        vec3(5, 0, 0),
+        vec4(vec3(1, 0, 0), 0),
+        1.0f,
+        true,
+        vec3(1, 1, 1),
+        0,
+        1.5f
+    );
+    BBox box7 = BBox(
+        vec3(0.5, 5, 5),
+        1.0f, 
+        vec3(-5, 0, 0),
+        vec4(vec3(1, 0, 0), 0),
+        1.0f,
+        true,
+        vec3(1, 1, 1),
+        0,
+        1.5f
+    );
+
+    sphere.linv = sphere.com * -1;
+    sphere1.linv = sphere1.com * -1;
+    sphere2.linv = sphere2.com * -1;
+    box2.linv = vec3(0, 10, 0);
 
     shapes.push_back(&world);
     shapes.push_back(&sphere);
+    shapes.push_back(&sphere1);
+    shapes.push_back(&sphere2);
+    shapes.push_back(&box5);
+    shapes.push_back(&box6);
+    shapes.push_back(&box7);
     //shapes.push_back(&box1);
-    shapes.push_back(&box2);
+    //shapes.push_back(&box2);
     //shapes.push_back(&box3);
     //shapes.push_back(&box4);
     
@@ -165,13 +228,25 @@ int Kernel::start(const char* windowTitle, int rx, int ry) {
     shader_data.size = DSIZE;
     shader_data.width = WIDTH;
 
+    // Initialize GIF
+    vector<uint8_t> gifimage;
+    GifWriter writer;
+    cout << "size1: " << gifimage.max_size();
+    cout << "res[0]*res[1]: " << resolution[0] * resolution[1] * 4;
+    gifimage.assign(resolution[0] * resolution[1] * 4, (uint8_t)0);
+    cout << "size2: " << gifimage.size();
+    //cin.ignore();
+    initGif("output/mygif.gif", gifimage, writer);
 
     cout << "Setup Complete" << "\n";
 
     isRunning = true;
+
+    initT = chrono::steady_clock::now();
     // Main loop
-    while (isRunning) {
-    //for (int i = 0; i < 1; i ++) {
+    int i = 0;
+    //while (isRunning) {
+    while (i < 128) {
         // Setup gl environment
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         // Background color
@@ -192,8 +267,17 @@ int Kernel::start(const char* windowTitle, int rx, int ry) {
         if (saveImage(window, renderer, fname.c_str())) {
             cout << "Saved image\n";
         }*/
-        cin.ignore();
+        //cin.ignore();
+
+        if (updateGif(window, renderer, gifimage, writer)) {
+            cout << "\nUpdated current gif frame\n";
+        }
+        //cin.ignore();
+
+        i ++;
     }
+    // Save gif to file
+    //GifEnd(&writer);
 
     // Free resources
     cleanUp(window, glContext);
@@ -410,8 +494,11 @@ SDL_Window* Kernel::createWindow(const char* windowTitle, int width, int height)
         SDL_Log("Window Successful Generated");
 
     resolution[0] = width; resolution[1] = height;
-    curTheta = -2.5216; curPhi = -0.0439999; 
-    setPos(7.67347, -0.140061, 7.31513);
+    //curTheta = -2.5216; curPhi = -0.0439999;
+    //curTheta = -1.6046; curPhi = -0.0509999;
+    curTheta = -1.5806; curPhi = 0.00600009;
+    setPos(0.207363, 0.474331, 18.6775);
+    //setPos(-0.889353, -0.440241, 12.5996);//7.67347, -0.140061, 7.31513);
     setDir(curTheta, curPhi+PI/2);
 
     wDown = false;
@@ -453,7 +540,7 @@ void Kernel::setDir(float theta, float phi) {
 void Kernel::update(vector<Shape*>& shapes) {
     frame += 1;
     
-    auto cur = chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point cur = chrono::steady_clock::now();
     std::chrono::duration<float> diff = cur - initT;
     float dt = diff.count() - curtime;
     curtime = diff.count();
@@ -463,7 +550,13 @@ void Kernel::update(vector<Shape*>& shapes) {
 
     int i = 0;
     for (Shape* shape : shapes) {
-        //shape->updateLoop(dt/100);
+        shape->updateLoop(0.01);//dt/2);
+        
+        for (Shape* s1 : shapes) {
+            if (shape != s1) {
+                shape->collideWith(s1);
+            }
+        }
 
         vector<float> parsedData;
         vector<float> parsedVertices;
@@ -608,7 +701,68 @@ bool Kernel::saveImage(SDL_Window* window, SDL_Renderer* renderer, const char* f
     SDL_FreeSurface(image);
 }
 
+/**
+ * Sets the pixel of a given image (given rgb int values between 0 and 256)
+ */
+void SetPixel(int x, int y, int width, uint8_t red, uint8_t grn, uint8_t blu, vector<uint8_t>& image) {
+    int ind = (y*width+x)*4;
+    image.at(ind+0) = red;
+    image.at(ind+1) = blu;
+    image.at(ind+2) = grn;
+    image.at(ind+3) = 255;
+}
 
+/**
+ * Sets the pixel of a given image (given rgb float values between 0 and 1)
+ */
+void SetPixelFloat(int x, int y, int width, float fred, float fgrn, float fblu, vector<uint8_t>& image) {
+    uint8_t red = (uint8_t)roundf( 255.0f * fred );
+    uint8_t grn = (uint8_t)roundf( 255.0f * fgrn );
+    uint8_t blu = (uint8_t)roundf( 255.0f * fblu );
+    
+    SetPixel(x, y, width, red, grn, blu, image);
+}
+
+/**
+ * Initializes the gif writer and filename
+ */
+bool Kernel::initGif(const char* file, vector<uint8_t>& gifimage, GifWriter& writer) {
+    //image = vector<uint8_t>(resolution[0] * resolution[1] * 4, 0);
+    // initializes the image to a black screen
+    gifimage.assign(resolution[0] * resolution[1] * 4, 0);
+    cout << "\nAssigned";
+	return GifBegin(&writer, file, resolution[0], resolution[1], 2, 8, true);
+}
+
+/**
+ * Updates a single frame of the gif based on what is currently in the renderer window
+ */
+bool Kernel::updateGif(SDL_Window* window, SDL_Renderer* renderer, vector<uint8_t>& gifimage, GifWriter& writer) {
+    int w,h;
+    SDL_GetRendererOutputSize(renderer, &w, &h);
+
+    SDL_Surface* surface = SDL_CreateRGBSurface(SDL_SWSURFACE, w, h, 24, 0x000000FF, 0x0000FF00, 0x00FF0000, 0);
+
+    glReadBuffer(GL_FRONT);
+    glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, surface->pixels);
+
+    flipSurface(surface);
+
+    for (int i = 0; i < resolution[0]; i ++) {
+        for (int j = 0; j < resolution[1]; j ++) {
+            SDL_Color rgb;
+            Uint32 data = getpixel(surface, i, j);
+            SDL_GetRGB(data, surface->format, &rgb.r, &rgb.g, &rgb.b);
+
+            SetPixel(i, j, resolution[0], rgb.r, rgb.b, rgb.g, gifimage);
+        }
+    }
+
+    SDL_FreeSurface(surface);
+
+    return GifWriteFrame(&writer, gifimage.data(), resolution[0], resolution[1], 2, 8, true);
+}
+    
 
 /**
  * Cleans up gl context and deletes the SDL window pane

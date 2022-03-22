@@ -14,6 +14,11 @@ class vec3 {
         float Y() const;
         float Z() const;
 
+        static void printv3(const vec3& v);
+
+        static vec3 shortestDistanceToLineSegment(const vec3& p, const vec3& v1, const vec3& v2);
+        static vec3 rotate(const vec3& v, const vec4& rot);
+
         static float dot(const vec3& v1, const vec3& v2);
         static vec3 cross(const vec3& v1, const vec3& v2);
         static vec3 project(const vec3& v1, const vec3& v2);
@@ -64,6 +69,6 @@ class vec3 {
         
 };
 
-#include "vec3.cpp"
+//#include "vec3.cpp"
 
 #endif

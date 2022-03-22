@@ -1,5 +1,10 @@
 #include "vec3.h"
 
+// prints vec3's
+void vec3::printv3(const vec3& v) {
+    cout << v.X() << " " << v.Y() << " " << v.Z();
+}
+
 // Represents a 3 dimensional vector <x, y, z>
 vec3::vec3(float x, float y, float z) {
     this->x = x; this->y = y; this->z = z;
@@ -30,6 +35,39 @@ float vec3::Z() const {
     return z;
 }
 
+// Shortest distance from point p to line segment defined by v1 and v2
+vec3 vec3::shortestDistanceToLineSegment(const vec3& p, const vec3& v1, const vec3& v2) {
+    vec3 ld = v2 - v1;
+    vec3 pd = p - v1;
+    vec3 ldd = v1 - v2;
+    vec3 pdd = p - v2;
+    vec3 pdld = vec3::project(pd, ld);
+    vec3 orth = pdld - pd;
+    vec3 l1 = v1 - p;
+    float m1 = vec3::dot(l1, l1);
+    vec3 l2 = v2 - p;
+    float m2 = vec3::dot(l2, l2);
+    
+    if (dot(ld, pdd) < 0 && dot(ldd, pd) < 0) {
+        return orth;
+    } else if (m1 < m2) {
+        return l1;
+    } else {
+        return l2;
+    }
+}
+
+// Rotate v by quaternion rot
+vec3 vec3::rotate(const vec3& v, const vec4& rot) {
+    vec4 quantN = vec4(0, v.X(), v.Y(), v.Z());
+    vec4 rotPrime = vec4(rot.X(), -rot.Y(), -rot.Z(), -rot.W());
+
+    vec4 quantNPrime = (rot*quantN)*rotPrime;
+
+    return vec3(quantNPrime.Y(), quantNPrime.Z(), quantNPrime.W());
+}
+
+
 // Dot product (v1 dot v2)
 float vec3::dot(const vec3& v1, const vec3& v2) {
     return v1.x*v2.x + v1.y*v2.y + v1.z*v2.z;
@@ -38,8 +76,8 @@ float vec3::dot(const vec3& v1, const vec3& v2) {
 vec3 vec3::cross(const vec3& v1, const vec3& v2) {
     vec3 r;
     r.x = v1.y*v2.z - v1.z*v2.y;
-    r.y = v1.y*v2.z - v1.z*v2.y;
-    r.z = v1.y*v2.z - v1.z*v2.y;
+    r.y = v1.z*v2.x - v1.x*v2.z;
+    r.z = v1.x*v2.y - v1.y*v2.x;
     return r;
 }
 // Projection (v1 projected onto v2)

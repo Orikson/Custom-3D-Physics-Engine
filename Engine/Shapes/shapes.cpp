@@ -33,7 +33,7 @@ Shape::Shape(float mass, vec3 &com, vec4 &orientation, float elasticity, bool an
     mass(mass), com(com), rot(orientation), e(elasticity), anchor(anchor), color(color), m(m), refidx(refidx) {
     sumF = vec3(0);
     sumT = vec3(0);
-
+    
     invMass = 1/mass;
 }
 
@@ -59,38 +59,73 @@ void Shape::applyTorque(vec3 F, vec3 d) {
  */
 vector<float> Shape::parseData() const {}
 vector<float> Shape::getVertices() const { vector<float> returned; return returned; }
-Collision Shape::collideWith_Sphere(const Shape& shape, float r) {}
-Collision Shape::collideWith_Box(const Shape& shape, vec3 dim) {}
-Collision Shape::collideWith_Capsule(const Shape& capsule, float len, float ri, float ro) {}
+vector<vec3> Shape::getEdges() const {}
+vec3 Shape::project(vec3 n) const {}
+void Shape::collideWith_Sphere(Collision* collision, const Shape& shape, float r) {}
+void Shape::collideWith_Box(Collision* collision, const Shape& shape, vec3 dim) {}
+void Shape::collideWith_Capsule(Collision* collision, const Shape& capsule, float len, float ri, float ro) {}
 
 
 /**
  * Calculate resultant velocities of a potential collision with a given object
  * @param shape shape to check a collision with
  */
-void Shape::collideWith(const Shape& shape) {
+void Shape::collideWith(Shape* shape) {
     vector<float> tempData;
-    tempData = shape.parseData();
+    tempData = shape->parseData();
+
+    // if its an anchored shape, no need to check collisions (other objects will check collisions with it)
+    if (anchor) {
+        return;
+    }
 
     Collision res;
 
     switch((int)tempData.at(0)) {
         case 0: // sphere
-            res = collideWith_Sphere(shape, tempData.at(8));
+            collideWith_Sphere(&res, *shape, tempData.at(8));
             break;
         case 1: // box
-
+            collideWith_Box(&res, *shape, vec3(tempData.at(8), tempData.at(9), tempData.at(10)));
             break;
         case 2: // capsule
-
+            collideWith_Capsule(&res, *shape, tempData.at(8), tempData.at(9), 0);
             break;
         case 3: // mesh
-
+            cout << "\n!?";
             break;
         default:
+            cout << "\n!!";
             break;
     }
 
+    //cout << "\n\nShape " << tempData.at(0) << " " << res.col;
+
+    if (res.col) {
+        vec3 ra = res.man.at(0) - com;
+        vec3 rb = res.man.at(0) - shape->com;
+        vec3 vab = (linv + vec3::cross(angv, ra)) - (shape->linv + vec3::cross(shape->angv, rb));
+        float Jtop = -(1+(shape->e+e)/2)*(vec3::dot(vab, res.n));
+        float Jbot = (vec3::dot(res.n, res.n)*(invMass + shape->invMass));
+        vec3 ta = vec3::cross(invMoment * vec3::cross(ra, res.n), ra);
+        vec3 tb = vec3::cross(shape->invMoment * vec3::cross(rb, res.n), rb);
+        Jbot += vec3::dot(ta + tb, res.n);
+
+        float J = Jtop / Jbot;
+
+        if (shape->anchor) {
+            com += res.n * res.pen;
+            vec3 temp = vec3::project(linv, res.n);
+            linv -= temp*2;
+        } else {
+            com += res.n * res.pen / 2;
+            shape->com -= res.n * res.pen / 2;
+            linv += res.n * J * invMass;
+            shape->linv -= res.n * J * shape->invMass;
+            angv += invMoment * vec3::cross(ra, (res.n * J));
+            shape->angv += shape->invMoment * vec3::cross(rb, (res.n * J));
+        }
+    }
 }
 
 /**
@@ -100,7 +135,7 @@ void Shape::collideWith(const Shape& shape) {
 void Shape::updateLoop(float dT) {
     if (!anchor) {
         // apply gravity
-        applyForce(vec3(0, G, 0));
+        applyForce(vec3(0, mass * G, 0));
 
         // update velocity
         linv += sumF * invMass * dT;
@@ -118,8 +153,8 @@ void Shape::updateLoop(float dT) {
         com += linv * dT;
 
         // update orientation
-        vec3 temp = angv * dT * 0.5;
-        rot += vec4(temp.X(), temp.Y(), temp.Z(), 0) * rot;
+        vec3 temp = angv * dT * -0.5;
+        rot += rot * vec4(0, temp.X(), temp.Y(), temp.Z());
         
         // normalize orientation
         rot = vec4::norm(rot);

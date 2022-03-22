@@ -17,10 +17,14 @@ class Capsule: public Shape {
         // For meshes, can be ignored
         vector<float> getVertices() const override;
 
+        // functions to help with standard collision detection algorithms
+        vector<vec3> getEdges() const override;
+        vec3 project(vec3 n) const override;
+
         // Collision functions
-        Collision collideWith_Sphere(const Shape& shape, float r) override;
-        Collision collideWith_Box(const Shape& shape, vec3 dim) override;
-        Collision collideWith_Capsule(const Shape& shape, float len, float ri, float ro) override;
+        void collideWith_Sphere(Collision* collision, const Shape& shape, float r) override;
+        void collideWith_Box(Collision* collision, const Shape& shape, vec3 dim) override;
+        void collideWith_Capsule(Collision* collision, const Shape& shape, float len, float ri, float ro) override;
 
     private:
         float l;

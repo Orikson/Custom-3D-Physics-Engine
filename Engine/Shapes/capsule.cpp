@@ -28,12 +28,27 @@ Shape(mass, com, orientation, elasticity, anchor, color, m, refidx), l(length), 
 }
 
 /**
+ * Returns the edges of the object. As spheres have no edges, returns nothing.
+ */
+vector<vec3> Capsule::getEdges() const {
+
+}
+
+/**
+ * Returns the projection of the shape onto a line
+ * @param n Normalized direction of axis
+ */
+vec3 Capsule::project(vec3 n) const {
+
+}
+
+/**
  * Calculate collision object between capsule (this) on sphere (shape)
  * @param shape Sphere to collide with
  * @param r Radius of given sphere
  */
-Collision Capsule::collideWith_Sphere(const Shape& shape, float r) {
-    bool collision; 
+void Capsule::collideWith_Sphere(Collision* collision, const Shape& shape, float r) {
+    bool col; 
     vec3 normal; 
     double penetration_depth; 
     vector<vec3> manifold;
@@ -43,8 +58,8 @@ Collision Capsule::collideWith_Sphere(const Shape& shape, float r) {
  * @param shape Box to collide with
  * @param dim Dimensions of given box
  */
-Collision Capsule::collideWith_Box(const Shape& shape, vec3 dim) {
-    bool collision; 
+void Capsule::collideWith_Box(Collision* collision, const Shape& shape, vec3 dim) {
+    bool col; 
     vec3 normal; 
     double penetration_depth; 
     vector<vec3> manifold;
@@ -56,8 +71,8 @@ Collision Capsule::collideWith_Box(const Shape& shape, vec3 dim) {
  * @param ri Inner radius of capsule
  * @param ro Placeholder for outer radius of capsule 
  */
-Collision Capsule::collideWith_Capsule(const Shape& shape, float len, float ri, float ro) {
-    bool collision; 
+void Capsule::collideWith_Capsule(Collision* collision, const Shape& shape, float len, float ri, float ro) {
+    bool col; 
     vec3 normal; 
     double penetration_depth; 
     vector<vec3> manifold;

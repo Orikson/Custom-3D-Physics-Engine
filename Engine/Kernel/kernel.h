@@ -20,6 +20,8 @@ class Kernel {
         void events(SDL_Window* window);
         bool saveImage(SDL_Window* window, SDL_Renderer* renderer, const char* file);
         bool saveImage(SDL_Surface* surface, const char* file);
+        bool initGif(const char* file, vector<uint8_t>& gifimage, GifWriter& writer);
+        bool updateGif(SDL_Window* window, SDL_Renderer* renderer, vector<uint8_t>& gifimage, GifWriter& writer);
         void setShader();
         void setPos(float x, float y, float z);
         void setDir(float theta, float phi);
@@ -38,13 +40,14 @@ class Kernel {
         bool ctrlDown; // ctrl
         bool enDown; // enter
 
+        std::chrono::steady_clock::time_point initT;
+
         float frame, curtime = 0;
         GLuint ps, vs, prog, iFrame, iTime;
         GLint cPos, cRot;
         GLuint ssbo = 0;
         SDL_Surface* sumSurface;
         int resolution[2];
-
 };
 
 #include "kernel.cpp"

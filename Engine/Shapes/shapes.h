@@ -21,11 +21,15 @@ class Shape {
         // a function just for meshes
         virtual vector<float> getVertices() const;
 
+        // functions to help with standard collision detection algorithms
+        virtual vector<vec3> getEdges() const;
+        virtual vec3 project(vec3 n) const; 
+
         // update collisions with a shape (uses parseData to access data it would otherwise not know about)
-        void collideWith(const Shape& shape);
-        virtual Collision collideWith_Sphere(const Shape& shape, float r);
-        virtual Collision collideWith_Box(const Shape& shape, vec3 dim);
-        virtual Collision collideWith_Capsule(const Shape& capsule, float len, float ri, float ro);
+        void collideWith(Shape* shape);
+        virtual void collideWith_Sphere(Collision* collision, const Shape& shape, float r);
+        virtual void collideWith_Box(Collision* collision, const Shape& shape, vec3 dim);
+        virtual void collideWith_Capsule(Collision* collision, const Shape& capsule, float len, float ri, float ro);
 
         // not private so parent classes can interact with them
         // physics properties

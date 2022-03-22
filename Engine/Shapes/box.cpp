@@ -20,12 +20,34 @@ Shape(mass, com, orientation, elasticity, anchor, color, m, refidx), dim(dim) {
 }
 
 /**
+ * Returns the edge directions of the object. 
+ */
+vector<vec3> BBox::getEdges() const {
+    vector<vec3> edges;
+    vec3 rotdim = vec3::rotate(dim, rot);
+    edges.insert(edges.end(), {
+        vec3(rotdim.X(), 0, 0), 
+        vec3(0, rotdim.Y(), 0), 
+        vec3(0, 0, rotdim.Z())
+    });
+    return edges;
+}
+
+/**
+ * Returns the projection of the shape onto a line
+ * @param n Normalized direction of axis
+ */
+vec3 BBox::project(vec3 n) const {
+
+}
+
+/**
  * Calculate collision object between box (this) on sphere (shape)
  * @param shape Sphere to collide with
  * @param r Radius of given sphere
  */
-Collision BBox::collideWith_Sphere(const Shape& shape, float r) {
-    bool collision; 
+void BBox::collideWith_Sphere(Collision* collision, const Shape& shape, float r) {
+    bool col; 
     vec3 normal; 
     double penetration_depth; 
     vector<vec3> manifold;
@@ -35,8 +57,8 @@ Collision BBox::collideWith_Sphere(const Shape& shape, float r) {
  * @param shape Box to collide with
  * @param dim Dimensions of given box
  */
-Collision BBox::collideWith_Box(const Shape& shape, vec3 dim) {
-    bool collision; 
+void BBox::collideWith_Box(Collision* collision, const Shape& shape, vec3 dim) {
+    bool col; 
     vec3 normal; 
     double penetration_depth; 
     vector<vec3> manifold;
@@ -48,8 +70,8 @@ Collision BBox::collideWith_Box(const Shape& shape, vec3 dim) {
  * @param ri Inner radius of capsule
  * @param ro Placeholder for outer radius of capsule 
  */
-Collision BBox::collideWith_Capsule(const Shape& shape, float len, float ri, float ro) {
-    bool collision; 
+void BBox::collideWith_Capsule(Collision* collision, const Shape& shape, float len, float ri, float ro) {
+    bool col; 
     vec3 normal; 
     double penetration_depth; 
     vector<vec3> manifold;
