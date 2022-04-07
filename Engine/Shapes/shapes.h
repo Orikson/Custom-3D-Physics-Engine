@@ -26,7 +26,7 @@ class Shape {
         virtual vec3 project(vec3 n) const; 
 
         // update collisions with a shape (uses parseData to access data it would otherwise not know about)
-        void collideWith(Shape* shape);
+        void collideWith(Shape* shape, float dT);
         virtual void collideWith_Sphere(Collision* collision, const Shape& shape, float r);
         virtual void collideWith_Box(Collision* collision, const Shape& shape, vec3 dim);
         virtual void collideWith_Capsule(Collision* collision, const Shape& capsule, float len, float ri, float ro);

@@ -18,6 +18,8 @@
  * ...
  */
 
+bool gifs = true;
+
 struct shader_data_t {
     float res[2];
     int size;
@@ -51,7 +53,7 @@ int Kernel::start(const char* windowTitle, int rx, int ry) {
 
     // Set shaders
     setShader();
-
+ 
     // Define shapes array
     vector<Shape*> shapes;
     BBox world = BBox(
@@ -68,7 +70,7 @@ int Kernel::start(const char* windowTitle, int rx, int ry) {
     Sphere sphere = Sphere(
         1.0f, 
         1.0f, 
-        vec3(0, 5, 0),
+        vec3(1, 5, 1),
         vec4(vec3(1, 0, 0), 0),
         1.0f,
         false,
@@ -92,7 +94,7 @@ int Kernel::start(const char* windowTitle, int rx, int ry) {
         1.0f, 
         vec3(2, 0, 0),
         vec4(vec3(1, 0, 0), 0),
-        1.0f,
+        0.95f,
         false,
         vec3(1, 1, 1),
         0,
@@ -124,8 +126,8 @@ int Kernel::start(const char* windowTitle, int rx, int ry) {
         1.0f,
         0.5f,
         1.0f,
-        vec3(-2, 4, -2),
-        vec4(vec3(1, 1, 0), 12),
+        vec3(-3, 0, -2),
+        vec4(vec3(1, -1, 1), PI/4),
         1.0f,
         false,
         vec3(0, 1, 0),
@@ -201,6 +203,28 @@ int Kernel::start(const char* windowTitle, int rx, int ry) {
         0,
         1.5f
     );
+    BBox box8 = BBox(
+        vec3(0.5, 0.5, 0.5),
+        1.0f,
+        vec3(0, 0, 0),
+        vec4(vec3(1, 1, 0), PI/4),
+        1.0f,
+        true,
+        vec3(0.5, 1, 0.5),
+        3,
+        1.5f
+    );
+    BBox box9 = BBox(
+        vec3(2, 1, 2),
+        1.0f,
+        vec3(0, -1.9, 0),
+        vec4(vec3(1, 0, 0), 0),
+        1.0f,
+        true,
+        vec3(1, 1, 1),
+        0,
+        1.5f
+    );
 
     sphere.linv = sphere.com * -1;
     sphere1.linv = sphere1.com * -1;
@@ -209,13 +233,15 @@ int Kernel::start(const char* windowTitle, int rx, int ry) {
 
     shapes.push_back(&world);
     shapes.push_back(&sphere);
-    shapes.push_back(&sphere1);
-    shapes.push_back(&sphere2);
-    shapes.push_back(&box5);
-    shapes.push_back(&box6);
-    shapes.push_back(&box7);
+    //shapes.push_back(&sphere1);
+    //shapes.push_back(&sphere2);
+    //shapes.push_back(&box5);
+    //shapes.push_back(&box6);
+    //shapes.push_back(&box7);
+    //shapes.push_back(&box8);
+    //shapes.push_back(&box9);
     //shapes.push_back(&box1);
-    //shapes.push_back(&box2);
+    shapes.push_back(&box2);
     //shapes.push_back(&box3);
     //shapes.push_back(&box4);
     
@@ -231,12 +257,15 @@ int Kernel::start(const char* windowTitle, int rx, int ry) {
     // Initialize GIF
     vector<uint8_t> gifimage;
     GifWriter writer;
-    cout << "size1: " << gifimage.max_size();
-    cout << "res[0]*res[1]: " << resolution[0] * resolution[1] * 4;
-    gifimage.assign(resolution[0] * resolution[1] * 4, (uint8_t)0);
-    cout << "size2: " << gifimage.size();
-    //cin.ignore();
-    initGif("output/mygif.gif", gifimage, writer);
+    
+    if (gifs) {
+        cout << "size1: " << gifimage.max_size();
+        cout << "res[0]*res[1]: " << resolution[0] * resolution[1] * 4;
+        gifimage.assign(resolution[0] * resolution[1] * 4, (uint8_t)0);
+        cout << "size2: " << gifimage.size();
+        //cin.ignore();
+        initGif("output/boxgif.gif", gifimage, writer);
+    }
 
     cout << "Setup Complete" << "\n";
 
@@ -269,15 +298,19 @@ int Kernel::start(const char* windowTitle, int rx, int ry) {
         }*/
         //cin.ignore();
 
-        if (updateGif(window, renderer, gifimage, writer)) {
-            cout << "\nUpdated current gif frame\n";
+        if (gifs) {
+            if (updateGif(window, renderer, gifimage, writer)) {
+                cout << "\nUpdated current gif frame\n";
+            }
         }
         //cin.ignore();
 
         i ++;
     }
     // Save gif to file
-    //GifEnd(&writer);
+    if (gifs) {
+        GifEnd(&writer);
+    }
 
     // Free resources
     cleanUp(window, glContext);
@@ -554,7 +587,7 @@ void Kernel::update(vector<Shape*>& shapes) {
         
         for (Shape* s1 : shapes) {
             if (shape != s1) {
-                shape->collideWith(s1);
+                shape->collideWith(s1, 0.01);//dt/2);
             }
         }
 

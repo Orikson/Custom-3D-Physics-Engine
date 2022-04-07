@@ -51,17 +51,39 @@ void BBox::collideWith_Sphere(Collision* collision, const Shape& shape, float r)
     vec3 normal; 
     double penetration_depth; 
     vector<vec3> manifold;
+
+    // should already be resolved
 }
 /**
  * Calculate collision object between box (this) on box (shape)
  * @param shape Box to collide with
  * @param dim Dimensions of given box
  */
-void BBox::collideWith_Box(Collision* collision, const Shape& shape, vec3 dim) {
+void BBox::collideWith_Box(Collision* collision, const Shape& shape, vec3 dimensions) {
     bool col; 
     vec3 normal; 
     double penetration_depth; 
     vector<vec3> manifold;
+
+    normal = SAT_boxBox(*this, shape, dim, dimensions);
+    if (vec3::dot(normal, normal) == 0) {
+        collision->col = false;
+        return;
+    }
+    //cout << "\n----WOW!----\n";
+    SAT_boxBoxCollision(collision, *this, shape, dim, dimensions);
+    //cout << "\nCollision resulted in: n: "; vec3::printv3(collision->n);
+    //cout << " pen: " << collision->pen << " manifold: "; 
+    //for (vec3 man : collision->man) {
+    //    vec3::printv3(man); cout << "; ";
+    //}
+    //collision->n = normal;
+    //collision->pen = vec3::mag(pointToBox(collision->man.at(0), com, dim, rot));
+    /*vector<vec3> tman;
+    tman.push_back(com);
+    collision->man = tman;
+    collision->col = true;
+    collision->pen = 0.1;*/
 }
 /**
  * Calculate collision object between box (this) on capsule (shape)

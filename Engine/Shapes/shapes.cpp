@@ -70,7 +70,7 @@ void Shape::collideWith_Capsule(Collision* collision, const Shape& capsule, floa
  * Calculate resultant velocities of a potential collision with a given object
  * @param shape shape to check a collision with
  */
-void Shape::collideWith(Shape* shape) {
+void Shape::collideWith(Shape* shape, float dT) {
     vector<float> tempData;
     tempData = shape->parseData();
 
@@ -102,28 +102,94 @@ void Shape::collideWith(Shape* shape) {
     //cout << "\n\nShape " << tempData.at(0) << " " << res.col;
 
     if (res.col) {
-        vec3 ra = res.man.at(0) - com;
-        vec3 rb = res.man.at(0) - shape->com;
-        vec3 vab = (linv + vec3::cross(angv, ra)) - (shape->linv + vec3::cross(shape->angv, rb));
-        float Jtop = -(1+(shape->e+e)/2)*(vec3::dot(vab, res.n));
-        float Jbot = (vec3::dot(res.n, res.n)*(invMass + shape->invMass));
-        vec3 ta = vec3::cross(invMoment * vec3::cross(ra, res.n), ra);
-        vec3 tb = vec3::cross(shape->invMoment * vec3::cross(rb, res.n), rb);
-        Jbot += vec3::dot(ta + tb, res.n);
+        float elasticity = e*shape->e;
+        
+        // consider per point in contact manifold penetration depth
+        // for now, considering the maximum penetration depth as the points penetration depth
+        float penSlop = min(SLOP + res.pen, 0.0);
+        cout << "\nUsing: ";
+        for (vec3 contact : res.man) {
+            vec3::printv3(contact); cout << "\n\t";
+        }
+        for (vec3 contact : res.man) {
+            vec3 ra = contact - com;
+            vec3 rb = contact - shape->com;
 
-        float J = Jtop / Jbot;
+            float bterm = -(BAUMGARTE / dT) * penSlop;
 
-        if (shape->anchor) {
-            com += res.n * res.pen;
-            vec3 temp = vec3::project(linv, res.n);
-            linv -= temp*2;
-        } else {
-            com += res.n * res.pen / 2;
-            shape->com -= res.n * res.pen / 2;
-            linv += res.n * J * invMass;
-            shape->linv -= res.n * J * shape->invMass;
-            angv += invMoment * vec3::cross(ra, (res.n * J));
-            shape->angv += shape->invMoment * vec3::cross(rb, (res.n * J));
+            float eterm = vec3::dot(res.n, linv + vec3::cross(ra, angv) - shape->linv - vec3::cross(rb, shape->angv));
+
+            bterm += (elasticity * eterm) / res.man.size();
+
+            bterm = 0;
+
+            // velocities of each point
+            vec3 v0 = linv + vec3::cross(angv, ra);
+            vec3 v1 = shape->linv + vec3::cross(shape->angv, rb);
+            vec3 dv = v1 - v0;
+
+            // constraint mass
+            float cmass;
+            if (shape->anchor) {
+                cmass = invMass +
+                    vec3::dot(res.n, 
+                        vec3::cross(invMoment*vec3::cross(ra, res.n), ra)
+                    );
+            } else {
+                cmass = invMass + shape->invMass +
+                    vec3::dot(res.n, 
+                        vec3::cross(invMoment*vec3::cross(ra, res.n), ra) +
+                        vec3::cross(shape->invMoment*vec3::cross(rb, res.n), rb)
+                    );
+            }
+
+            if (cmass > 0) {
+                float jn = max(vec3::dot(dv, res.n) * elasticity + bterm, 0.0f);
+                jn /= cmass;
+
+                float multj = 1;
+                float multv = 2;
+                if (!shape->anchor) {
+                    multj = 0.5;
+                    multv = 1;
+                }
+
+                com += res.n * res.pen * multj;
+                linv += res.n * jn * invMass * multv;
+                angv += invMoment * vec3::cross(ra, res.n * jn * multv);
+                
+                if (!shape->anchor) {
+                    shape->com -= res.n * res.pen * multj;
+                    shape->linv -= res.n * jn * invMass;
+                    shape->angv -= shape->invMoment * vec3::cross(rb, res.n * jn);
+                }
+            }
+            
+            
+            /*
+            vec3 vab = (linv + vec3::cross(angv, ra)) - (shape->linv + vec3::cross(shape->angv, rb));
+            float Jtop = -(1+shape->e*e)*(vec3::dot(vab, res.n));
+            float Jbot = (vec3::dot(res.n, res.n)*(invMass + shape->invMass));
+            vec3 ta = vec3::cross(invMoment * vec3::cross(ra, res.n), ra);
+            vec3 tb = vec3::cross(shape->invMoment * vec3::cross(rb, res.n), rb);
+            Jbot += vec3::dot(ta + tb, res.n);
+
+            float J = Jtop / Jbot;
+
+
+            if (shape->anchor) {
+                com += res.n * res.pen;
+                linv += res.n * J * invMass;
+                angv -= invMoment * vec3::cross(ra, (res.n * J));
+            } else {
+                com += res.n * res.pen / 2;
+                shape->com -= res.n * res.pen / 2;
+                linv += res.n * J * invMass;
+                shape->linv -= res.n * J * shape->invMass;
+                angv += invMoment * vec3::cross(ra, (res.n * J));
+                shape->angv -= shape->invMoment * vec3::cross(rb, (res.n * J));
+            }
+            */
         }
     }
 }
@@ -153,7 +219,7 @@ void Shape::updateLoop(float dT) {
         com += linv * dT;
 
         // update orientation
-        vec3 temp = angv * dT * -0.5;
+        vec3 temp = angv * dT * 0.5;
         rot += rot * vec4(0, temp.X(), temp.Y(), temp.Z());
         
         // normalize orientation

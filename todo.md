@@ -11,8 +11,8 @@ Shapes
     [x] Define Shape class
     [x] Define Sphere class
     [x] Define Box class
-    [ ] Define Capsule class
-    [ ] Define Mesh class
+    [x] Define Capsule class
+    [x] Define Mesh class
     [x] Write parser to pass shape data to shader
 
 Renderer

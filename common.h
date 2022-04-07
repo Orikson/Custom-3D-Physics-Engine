@@ -5,11 +5,13 @@
 #define PI 3.141592653589793238462643383279502884197169399375105820974944592307816
 #define G -9.8
 #define DAMPEN 0.995
+#define BAUMGARTE 0.1
+#define SLOP 0.001
 
 
 /*=======DATA CONSTANTS=======*/
 // number of shapes
-const int DSIZE = 7;
+const int DSIZE = 10;
 // width of data
 const int WIDTH = 16;
 

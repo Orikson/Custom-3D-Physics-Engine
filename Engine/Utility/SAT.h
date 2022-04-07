@@ -171,4 +171,308 @@ bool SAT_checkCollision(const Shape& s1, const Shape& s2) {
     }
 }
 
+/**
+ * Checks for a collision between two boxes given their dimensions and references
+ * @param s1 First box corresponding with dim1
+ * @param s2 Second box corresponding with dim2
+ * @param dim1 Dimensions of the first box
+ * @param dim2 Dimensions of the second box
+ * @return vec3 representing the normal of a collision between the two boxes (0, 0, 0) if no collision detected
+ */
+vec3 SAT_boxBox(const Shape& s1, const Shape& s2, vec3 dim1, vec3 dim2) {
+    vec3 w1 = vec3::rotate(vec3(dim1.X(), 0, 0), s1.rot);
+    vec3 l1 = vec3::rotate(vec3(0, dim1.Y(), 0), s1.rot);
+    vec3 h1 = vec3::rotate(vec3(0, 0, dim1.Z()), s1.rot);
+    vec3 w2 = vec3::rotate(vec3(dim2.X(), 0, 0), s2.rot);
+    vec3 l2 = vec3::rotate(vec3(0, dim2.Y(), 0), s2.rot);
+    vec3 h2 = vec3::rotate(vec3(0, 0, dim2.Z()), s2.rot);
+    vector<vec3> normals = {
+        w1, l1, h1, 
+        w2, l2, h2, 
+        vec3::cross(w1, w2), vec3::cross(w1, l2), vec3::cross(w1, h2), 
+        vec3::cross(l1, w2), vec3::cross(l1, l2), vec3::cross(l1, h2), 
+        vec3::cross(h1, w2), vec3::cross(h1, l2), vec3::cross(h1, h2), 
+    };
+    vector<vec3> points1 = {
+        s1.com + w1 + l1 + h1,
+        s1.com + w1 + l1 - h1,
+        s1.com + w1 - l1 + h1,
+        s1.com + w1 - l1 - h1,
+        s1.com + w1*-1 + l1 + h1,
+        s1.com + w1*-1 + l1 - h1,
+        s1.com + w1*-1 - l1 + h1,
+        s1.com + w1*-1 - l1 - h1
+    };
+    vector<vec3> points2 = {
+        s2.com + w2 + l2 + h2,
+        s2.com + w2 + l2 - h2,
+        s2.com + w2 - l2 + h2,
+        s2.com + w2 - l2 - h2,
+        s2.com + w2*-1 + l2 + h2,
+        s2.com + w2*-1 + l2 - h2,
+        s2.com + w2*-1 - l2 + h2,
+        s2.com + w2*-1 - l2 - h2
+    };
+    vec3 minn = vec3(0);
+    float mind = vec3::mag(dim1) + vec3::mag(dim2);
+    for (vec3 n : normals) {
+        float min1 = vec3::dot(points1.at(0), n);
+        float max1 = min1;
+        float min2 = vec3::dot(points2.at(0), n);
+        float max2 = min2;
+
+        for (vec3 v : points1) {
+            float temp = vec3::dot(v, n);
+            if (temp < min1) {
+                min1 = temp;
+            }
+            if (temp > max1) {
+                max1 = temp;
+            }
+        }
+        for (vec3 v : points2) {
+            float temp = vec3::dot(v, n);
+            if (temp < min2) {
+                min2 = temp;
+            }
+            if (temp > max2) {
+                max2 = temp;
+            }
+        }
+        
+        // if any range is not intersecting then the objects are not colliding
+        if (max(min1, min2) > min(max1, max2)) {
+            return vec3(0);
+        } else if (min(max1, max2) - max(min1, min2) < mind) {
+            mind = min(max1, max2) - max(min1, min2);
+            minn = n;
+        }
+    }
+    // otherwise they are colliding
+    return minn;
+}
+
+/**
+ * Clips a ray defined by ro and rd based on whether the point exists on the side of the plane defined by n and originating from p
+ * @return vec3 of the updated position of ro
+ */
+vec3 clipPoly(vec3 ro, vec3 rd, vec3 p, vec3 n) {
+    vec3 tp = ro + rd;
+    bool tn = vec3::dot(tp-p, n) > 0;
+    bool pn = vec3::dot(ro-p, n) > 0;
+    if (!pn || tn) {
+        return ro;
+    }
+
+    // if ro is on the positive normal side of the plane readjust ro
+    float t = vec3::dot(p - ro, n) / vec3::dot(rd, n);
+    return ro + rd * t;
+}
+
+/**
+ * Using relevant information only available within the SAT_boxBox collision detection function, update collision manifold
+ */
+void SAT_boxBoxCollision(Collision* collision, const Shape& s1, const Shape& s2, vec3 dim1, vec3 dim2) {
+    vec3 w1 = vec3::rotate(vec3(dim1.X(), 0, 0), s1.rot);
+    vec3 l1 = vec3::rotate(vec3(0, dim1.Y(), 0), s1.rot);
+    vec3 h1 = vec3::rotate(vec3(0, 0, dim1.Z()), s1.rot);
+    vec3 w2 = vec3::rotate(vec3(dim2.X(), 0, 0), s2.rot);
+    vec3 l2 = vec3::rotate(vec3(0, dim2.Y(), 0), s2.rot);
+    vec3 h2 = vec3::rotate(vec3(0, 0, dim2.Z()), s2.rot);
+    vector<vec3> normals = {
+        w1, l1, h1, 
+        w2, l2, h2, 
+        vec3::cross(w1, w2), vec3::cross(w1, l2), vec3::cross(w1, h2), 
+        vec3::cross(l1, w2), vec3::cross(l1, l2), vec3::cross(l1, h2), 
+        vec3::cross(h1, w2), vec3::cross(h1, l2), vec3::cross(h1, h2), 
+    };
+    vector<vec3> points1 = {
+        s1.com + w1 + l1 + h1,
+        s1.com + w1 + l1 - h1,
+        s1.com + w1 - l1 + h1,
+        s1.com + w1 - l1 - h1,
+        s1.com + w1*-1 + l1 + h1,
+        s1.com + w1*-1 + l1 - h1,
+        s1.com + w1*-1 - l1 + h1,
+        s1.com + w1*-1 - l1 - h1
+    };
+    vector<vec3> points2 = {
+        s2.com + w2 + l2 + h2,
+        s2.com + w2 + l2 - h2,
+        s2.com + w2 - l2 + h2,
+        s2.com + w2 - l2 - h2,
+        s2.com + w2*-1 + l2 + h2,
+        s2.com + w2*-1 + l2 - h2,
+        s2.com + w2*-1 - l2 + h2,
+        s2.com + w2*-1 - l2 - h2
+    };
+    vec3 minn = vec3(0);
+    float mind = vec3::mag(dim1) + vec3::mag(dim2);
+    for (vec3 norms : normals) {
+        vec3 n = vec3::norm(norms);
+        float min1 = vec3::dot(points1.at(0), n);
+        float max1 = min1;
+        float min2 = vec3::dot(points2.at(0), n);
+        float max2 = min2;
+        vec3 maxv1 = points1.at(0);
+        vec3 maxv2 = points2.at(0);
+
+        for (vec3 v : points1) {
+            float temp = vec3::dot(v, n);
+            if (temp < min1) {
+                min1 = temp;
+            }
+            if (temp > max1) {
+                max1 = temp;
+                maxv1 = v;
+            }
+        }
+        for (vec3 v : points2) {
+            float temp = vec3::dot(v, n);
+            if (temp < min2) {
+                min2 = temp;
+            }
+            if (temp > max2) {
+                max2 = temp;
+                maxv2 = v;
+            }
+        }
+
+        // if any range is not intersecting then the objects are not colliding
+        if (max(min1, min2) > min(max1, max2)) {
+            collision->col = false;
+            return;
+        } else if (min(max1, max2) - max(min1, min2) < mind) {
+            mind = min(max1, max2) - max(min1, min2);
+            minn = n;
+            //cout << "\non normal: "; vec3::printv3(n);
+
+        }
+    }
+    // we have found a collision!
+    vec3 n = vec3::norm(minn);
+    float pen = mind;
+    //cout << "\nCollision using normal: "; vec3::printv3(n);
+
+    // identify significant faces
+    vector<vec3> s1normals = {w1, l1, h1, w1*-1, l1*-1, h1*-1};
+    vector<vec3> s2normals = {w2, l2, h2, w2*-1, l2*-1, h2*-1};
+    int cl1 = 0;
+    float clmax1 = vec3::dot(vec3::norm(s1normals.at(0)), n);
+    int cl2 = 0;
+    float clmax2 = vec3::dot(vec3::norm(s2normals.at(0)), n*-1); 
+    for (int i = 0; i < 6; i ++) {
+        float t1 = vec3::dot(vec3::norm(s1normals.at(i)), n);
+        float t2 = vec3::dot(vec3::norm(s2normals.at(i)), n*-1);
+        float t3 = vec3::dot(vec3::norm(s1normals.at(i)), n*-1);
+        float t4 = vec3::dot(vec3::norm(s2normals.at(i)), n);
+        if (t1 > clmax1) {
+            clmax1 = t1;
+            cl1 = i;
+        }
+        if (t2 > clmax2) {
+            clmax2 = t2;
+            cl2 = i;
+        }
+        if (t3 > clmax1) {
+            clmax1 = t3;
+            cl1 = i;
+        }
+        if (t4 > clmax2) {
+            clmax2 = t4;
+            cl2 = i;
+        }
+    }
+
+    bool or12 = false;
+
+    // determine reference or incident face
+    vec3 ref = vec3(0);
+    vec3 inc = vec3(0);
+    if (clmax1 > clmax2) {
+        or12 = true;
+        ref = s1normals.at(cl1);
+        inc = s2normals.at(cl2);
+    } else {
+        or12 = false;
+        ref = s2normals.at(cl2);
+        inc = s1normals.at(cl1);
+    }
+
+    cout << "\nOr12: " << or12;
+    cout << "\nUsing reference normal: "; vec3::printv3(ref); 
+    cout << "\nUsing incident normal: "; vec3::printv3(inc);
+
+    // clip by all adjacent planes
+    // identify adjacent plane normal indicies
+    // clip all points on incident plane until we have a set of points constructing our contact manifold
+    // points consist of adjp sums (0, 1), (0, 3), (2, 3), (2, 1) [in this specific order according to gray binary]
+    vector<vec3> points;
+    vector<int> adjp = {1, 2, 4, 5};
+    for (int i = 0; i < 4; i ++) {
+        int offset = 0;
+        if (or12) {
+            offset = cl1;
+        } else {
+            offset = cl2;
+        }
+        adjp.at(i) = (offset + adjp.at(i)) % 6;
+    }
+    vec3 tcom = vec3(0);
+    if (!or12) {
+        tcom = s1.com;
+        points.push_back(tcom + s1normals.at(adjp.at(0)) + s1normals.at(adjp.at(1)));
+        points.push_back(tcom + s1normals.at(adjp.at(0)) + s1normals.at(adjp.at(3)));
+        points.push_back(tcom + s1normals.at(adjp.at(2)) + s1normals.at(adjp.at(3)));
+        points.push_back(tcom + s1normals.at(adjp.at(2)) + s1normals.at(adjp.at(1)));
+    } else {
+        tcom = s2.com;
+        points.push_back(tcom + s2normals.at(adjp.at(0)) + s2normals.at(adjp.at(1)));
+        points.push_back(tcom + s2normals.at(adjp.at(0)) + s2normals.at(adjp.at(3)));
+        points.push_back(tcom + s2normals.at(adjp.at(2)) + s2normals.at(adjp.at(3)));
+        points.push_back(tcom + s2normals.at(adjp.at(2)) + s2normals.at(adjp.at(1)));
+    }
+    
+    cout << "\nUsing points: ";
+    for (vec3 pointssss : points) {
+        vec3::printv3(pointssss); cout << "; ";
+    }
+    cout << "\nTCOM: "; vec3::printv3(tcom);
+
+    // now that we've determined the points on the incident plane, we must clip them
+    // vec3 clipPoly(vec3 ro, vec3 rd, vec3 p, vec3 n)
+    // iterate through normals
+    for (int i = 0; i < 4; i ++) {
+        // iterate through points and update
+        for (int j = 0; j < 4; j ++) {
+            cout << "\nClipping " << i << " " << j << " "; vec3::printv3(points.at(j)); cout << " -> ";
+            if (or12) {
+                vec3::printv3(clipPoly(points.at(j), points.at((j+4+1)%4) - points.at(j), tcom + s1normals.at(adjp.at(i)), s1normals.at(adjp.at(i))));
+                points.at(j) = clipPoly(points.at(j), points.at((j+4+1)%4) - points.at(j), tcom + s1normals.at(adjp.at(i)), s1normals.at(adjp.at(i)));
+                points.at(j) = clipPoly(points.at(j), points.at((j+4-1)%4) - points.at(j), tcom + s1normals.at(adjp.at(i)), s1normals.at(adjp.at(i)));
+            } else {
+                vec3::printv3(clipPoly(points.at(j), points.at((j+4+1)%4) - points.at(j), tcom + s2normals.at(adjp.at(i)), s2normals.at(adjp.at(i))));
+                points.at(j) = clipPoly(points.at(j), points.at((j+4+1)%4) - points.at(j), tcom + s2normals.at(adjp.at(i)), s2normals.at(adjp.at(i)));
+                points.at(j) = clipPoly(points.at(j), points.at((j+4-1)%4) - points.at(j), tcom + s2normals.at(adjp.at(i)), s2normals.at(adjp.at(i)));
+            }
+        }
+    }
+    
+    // now we remove points still above the normal
+    vector<vec3> final;
+    for (int i = 0; i < 4; i ++) {
+        vec3 tempv = points.at(i);
+        if (vec3::dot(tempv - (tcom + ref), ref) < 0) {
+            final.push_back(tempv);
+        }
+    }
+
+    // finalize
+    collision->col = true;
+    collision->man = final;
+    collision->pen = pen;
+    collision->n = n;
+    return;
+}
+
 #endif
