@@ -23,7 +23,11 @@ TBD
 TBD
 
 #### Object Collisions
-TBD
+<img src="https://user-images.githubusercontent.com/42471346/162101295-01fdfcb5-8c8b-4097-b701-f6b42806a242.gif" width="500" height="500">
+<img src="https://user-images.githubusercontent.com/42471346/162111091-427ce767-3937-483f-80f3-ed92ac50e692.gif" width="500" height="500">
+Artifacts caused by lossy GIF compression. Still image before compression: 
+<img src="https://user-images.githubusercontent.com/42471346/162111780-6dc39cea-dceb-414c-9b81-fd9f8f57fbe2.png" width="500" height="500">
+
 
 ## Installation
 
